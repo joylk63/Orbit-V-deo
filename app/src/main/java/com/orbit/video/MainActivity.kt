@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.util.Size
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -11,11 +13,13 @@ import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,10 +32,13 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -114,6 +121,13 @@ private fun OrbitApp() {
         }
     }
 
+    BackHandler(enabled = mediaUri != null) {
+        player.pause()
+        mediaUri = null
+        selectedName = null
+        showTrackInfo = false
+    }
+
     LaunchedEffect(Unit) { refreshVideos() }
     LaunchedEffect(mediaUri) {
         mediaUri?.let {
@@ -160,8 +174,17 @@ private fun OrbitApp() {
                 }
 
                 if (mediaUri != null) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = {
+                            player.pause()
+                            mediaUri = null
+                            selectedName = null
+                        }) { Text("‹  BACK TO LIBRARY", color = OrbitText, fontSize = 11.sp, letterSpacing = 1.sp) }
+                        Spacer(Modifier.weight(1f))
+                        Text("NOW PLAYING", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 1.sp)
+                    }
                     Box(
-                        modifier = Modifier.fillMaxWidth().weight(1f).background(Color(0xFF050505), RoundedCornerShape(3.dp)),
+                        modifier = Modifier.fillMaxWidth().weight(1f).background(Color.Black, RoundedCornerShape(3.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         AndroidView(
@@ -169,11 +192,15 @@ private fun OrbitApp() {
                                 PlayerView(viewContext).apply {
                                     this.player = player
                                     useController = true
+                                    resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                                     setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                                     setShutterBackgroundColor(android.graphics.Color.BLACK)
                                 }
                             },
-                            update = { it.player = player },
+                            update = {
+                                it.player = player
+                                it.resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -223,6 +250,13 @@ private fun OrbitApp() {
                                     verticalArrangement = Arrangement.spacedBy(7.dp)
                                 ) {
                                     items(videos, key = { it.uri.toString() }) { video ->
+                                        val thumbnail by produceState<Bitmap?>(initialValue = null, video.uri) {
+                                            value = withContext(Dispatchers.IO) {
+                                                if (Build.VERSION.SDK_INT >= 29) runCatching {
+                                                    context.contentResolver.loadThumbnail(video.uri, Size(160, 100), null)
+                                                }.getOrNull() else null
+                                            }
+                                        }
                                         Row(
                                             Modifier.fillMaxWidth().background(OrbitPanel, RoundedCornerShape(3.dp))
                                                 .clickable {
@@ -231,8 +265,18 @@ private fun OrbitApp() {
                                                 }.padding(horizontal = 12.dp, vertical = 13.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Box(Modifier.size(40.dp).background(Color(0xFF242424), RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
-                                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = OrbitText)
+                                            Box(Modifier.size(width = 88.dp, height = 58.dp).background(Color(0xFF242424), RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
+                                                if (thumbnail != null) {
+                                                    Image(
+                                                        bitmap = thumbnail!!.asImageBitmap(),
+                                                        contentDescription = "Video thumbnail",
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                                    )
+                                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
+                                                } else {
+                                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = OrbitText)
+                                                }
                                             }
                                             Spacer(Modifier.width(12.dp))
                                             Column(Modifier.weight(1f)) {
@@ -249,7 +293,7 @@ private fun OrbitApp() {
                     }
                 }
 
-                Column(
+                if (mediaUri == null) Column(
                     Modifier.fillMaxWidth().background(OrbitPanel, RoundedCornerShape(3.dp)).padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(11.dp)
                 ) {
@@ -291,7 +335,7 @@ private fun OrbitApp() {
                     if (showTrackInfo) Text("Audio and subtitle track selection is planned for a later build.", color = OrbitMuted, fontSize = 11.sp)
                 }
 
-                Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (mediaUri == null) Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("● ● ●", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 2.sp)
                     Spacer(Modifier.weight(1f))
                     Text("DESIGNED FOR YOUR MEDIA", color = OrbitMuted, fontSize = 9.sp, letterSpacing = 1.5.sp)
