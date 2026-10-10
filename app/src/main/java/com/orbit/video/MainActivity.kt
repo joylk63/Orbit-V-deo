@@ -28,6 +28,10 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Image
@@ -58,6 +62,7 @@ import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -110,8 +115,22 @@ private fun OrbitApp() {
     var hasPermission by remember { mutableStateOf(hasVideoPermission(context)) }
     var searchQuery by remember { mutableStateOf("") }
     val prefs = remember { context.getSharedPreferences("orbit_player", Context.MODE_PRIVATE) }
+    var themeName by remember { mutableStateOf(prefs.getString("theme_name", "Orbit Red") ?: "Orbit Red") }
+    val palette = when (themeName) {
+        "Matrix Green" -> listOf(Color(0xFF050A07), Color(0xFF101B14), Color(0xFF00C878), Color(0xFFF0FFF5), Color(0xFF8DA99A), Color(0xFF294638))
+        "Ice Blue" -> listOf(Color(0xFF06090D), Color(0xFF111923), Color(0xFF42B8FF), Color(0xFFF2F8FF), Color(0xFF91A5B8), Color(0xFF2A3C4D))
+        "Amber" -> listOf(Color(0xFF0B0905), Color(0xFF1D1710), Color(0xFFFFB547), Color(0xFFFFF7E8), Color(0xFFB5A48A), Color(0xFF413222))
+        else -> listOf(Color(0xFF080808), Color(0xFF141414), Color(0xFFE53935), Color(0xFFF4F4F0), Color(0xFF92928D), Color(0xFF303030))
+    }
+    val OrbitBlack by animateColorAsState(palette[0], animationSpec = tween(350), label = "theme-background")
+    val OrbitPanel by animateColorAsState(palette[1], animationSpec = tween(350), label = "theme-panel")
+    val OrbitAccent by animateColorAsState(palette[2], animationSpec = tween(350), label = "theme-accent")
+    val OrbitText by animateColorAsState(palette[3], animationSpec = tween(350), label = "theme-text")
+    val OrbitMuted by animateColorAsState(palette[4], animationSpec = tween(350), label = "theme-muted")
+    val OrbitLine by animateColorAsState(palette[5], animationSpec = tween(350), label = "theme-line")
     var gridView by remember { mutableStateOf(prefs.getBoolean("video_grid_view", false)) }
     var currentTab by remember { mutableStateOf("Video") }
+    var themeSectionExpanded by remember { mutableStateOf(false) }
     var isMuted by remember { mutableStateOf(false) }
     var controlsLocked by remember { mutableStateOf(false) }
     var fillVideo by remember { mutableStateOf(false) }
@@ -262,22 +281,31 @@ private fun OrbitApp() {
                 }
             }
         ) { padding ->
+            AnimatedContent(
+                targetState = if (mediaUri != null) "Player" else currentTab,
+                modifier = Modifier.fillMaxSize().padding(padding),
+                transitionSpec = {
+                    (fadeIn(animationSpec = tween(240)) + slideInHorizontally(animationSpec = tween(240)) { it / 18 }) togetherWith
+                        (fadeOut(animationSpec = tween(170)) + slideOutHorizontally(animationSpec = tween(170)) { -it / 24 })
+                },
+                label = "orbit-screen-transition"
+            ) { tab ->
             Column(
-                modifier = Modifier.fillMaxSize().padding(padding)
+                modifier = Modifier.fillMaxSize()
                     .padding(horizontal = if (mediaUri != null) 0.dp else 18.dp, vertical = if (mediaUri != null) 0.dp else 8.dp)
-                    .animateContentSize(),
+                    .animateContentSize(animationSpec = tween(260)),
                 verticalArrangement = Arrangement.spacedBy(if (mediaUri != null) 0.dp else 12.dp)
             ) {
-                if (mediaUri == null && (currentTab == "Video" || currentTab == "Music")) {
+                if (mediaUri == null && (tab == "Video" || tab == "Music")) {
                     OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.fillMaxWidth().animateContentSize(), placeholder = { Text("Search videos", color = OrbitMuted) }, leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = OrbitMuted) }, singleLine = true, shape = RoundedCornerShape(10.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = OrbitText, unfocusedTextColor = OrbitText, focusedBorderColor = OrbitAccent, unfocusedBorderColor = OrbitLine, cursorColor = OrbitAccent))
                 }
-                if (mediaUri == null && (currentTab == "Video" || currentTab == "Music")) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                if (mediaUri == null && (tab == "Video" || tab == "Music")) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(if (mediaUri == null) "YOUR LIBRARY" else "NOW / PLAYING", color = OrbitMuted, fontSize = 10.sp, letterSpacing = 2.sp)
                     Spacer(Modifier.weight(1f))
                     Text("●  LOCAL MEDIA", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 1.sp)
                 }
 
-                if (currentTab == "Music" && mediaUri == null) {
+                if (tab == "Music" && mediaUri == null) {
                     Column(Modifier.fillMaxWidth().weight(1f).background(Color(0xFF050505), RoundedCornerShape(3.dp)).padding(14.dp)) {
                         Text("MUSIC ON DEVICE", color = OrbitText, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                         Text("${audios.size} audio files found", color = OrbitMuted, fontSize = 11.sp)
@@ -296,7 +324,7 @@ private fun OrbitApp() {
                             }
                         }
                     }
-                } else if (currentTab == "Folder" && mediaUri == null) {
+                } else if (tab == "Folder" && mediaUri == null) {
                     val folders = videos.filter { it.uri.toString() !in hiddenUris }.groupBy { it.folder.ifBlank { "Other / Unknown" } }.toSortedMap()
                     Column(Modifier.fillMaxWidth().weight(1f).background(Color(0xFF050505), RoundedCornerShape(3.dp)).padding(14.dp)) {
                         Text("VIDEO FOLDERS", color = OrbitText, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
@@ -322,11 +350,42 @@ private fun OrbitApp() {
                     }
                 }
 
-                if (currentTab == "Me" && mediaUri == null) {
+                if (tab == "Me" && mediaUri == null) {
                     Column(Modifier.fillMaxWidth().weight(1f).background(OrbitPanel, RoundedCornerShape(12.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Text("ABOUT ORBIT", color = OrbitText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Text("Developer: Joy", color = OrbitMuted, fontSize = 14.sp)
                         OutlinedButton(onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse("https://www.facebook.com/IMALONEJOY"))) }, modifier = Modifier.fillMaxWidth()) { Text("DEVELOPER FACEBOOK", color = OrbitText) }
+                        HorizontalDivider(color = OrbitLine)
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                                .clickable { themeSectionExpanded = !themeSectionExpanded }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Tune, contentDescription = null, tint = OrbitAccent)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("APPEARANCE", color = OrbitText, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                Text("Theme: $themeName", color = OrbitMuted, fontSize = 12.sp)
+                            }
+                            Text(if (themeSectionExpanded) "−" else "+", color = OrbitAccent, fontSize = 22.sp)
+                        }
+                        AnimatedContent(targetState = themeSectionExpanded, transitionSpec = {
+                            fadeIn(tween(180)) togetherWith fadeOut(tween(120))
+                        }, label = "theme-options") { expanded ->
+                            if (expanded) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                    listOf("Orbit Red", "Matrix Green", "Ice Blue", "Amber").forEach { option ->
+                                        FilterChip(
+                                            selected = themeName == option,
+                                            onClick = { themeName = option; prefs.edit().putString("theme_name", option).apply() },
+                                            label = { Text(option) },
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         HorizontalDivider(color = OrbitLine)
                         Text("PRIVACY", color = OrbitText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Text("Long-press any video in Library to hide it. Hidden videos are excluded from search and the main list.", color = OrbitMuted, fontSize = 12.sp)
@@ -439,7 +498,7 @@ private fun OrbitApp() {
                             Button(onClick = { controlsLocked = false }, modifier = Modifier.align(Alignment.Center), colors = ButtonDefaults.buttonColors(containerColor = Color(0xAA202020))) { Text("🔒 UNLOCK", color = Color.White) }
                         }
                     }
-                } else if (currentTab == "Video") {
+                } else if (tab == "Video") {
                     Column(
                         Modifier.fillMaxWidth().weight(1f).background(Color(0xFF050505), RoundedCornerShape(3.dp)).padding(14.dp)
                     ) {
@@ -582,11 +641,12 @@ private fun OrbitApp() {
 
 
 
-                if (mediaUri == null && currentTab == "Video") Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (mediaUri == null && tab == "Video") Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("● ● ●", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 2.sp)
                     Spacer(Modifier.weight(1f))
                     Text("DESIGNED FOR YOUR MEDIA", color = OrbitMuted, fontSize = 9.sp, letterSpacing = 1.5.sp)
                 }
+            }
             }
         }
     }
