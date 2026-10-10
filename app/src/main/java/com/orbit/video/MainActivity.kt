@@ -263,7 +263,7 @@ private fun OrbitApp() {
                         Image(
                             painter = painterResource(id = R.drawable.orbit_logo),
                             contentDescription = "Orbit V!deo logo",
-                            modifier = Modifier.size(42.dp)
+                            modifier = Modifier.size(50.dp)
                         )
                         IconButton(onClick = { if (!hasPermission) requestMediaPermission() else refreshVideos() }) {
                             Icon(Icons.Default.VideoLibrary, contentDescription = "Refresh video library", tint = OrbitText)
@@ -620,7 +620,7 @@ private fun OrbitApp() {
                                                     .combinedClickable(onClick = { mediaUri = video.uri; selectedName = video.name }, onLongClick = { pendingHide = video; pinEntry = ""; pinError = ""; showPinDialog = true })
                                                     .padding(8.dp)
                                             ) {
-                                                Box(Modifier.fillMaxWidth().aspectRatio(1.24f).background(Color(0xFF242424), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
+                                                Box(Modifier.fillMaxWidth().aspectRatio(0.96f).background(Color(0xFF242424), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
                                                     if (thumbnail != null) Image(
                                                         bitmap = thumbnail!!.asImageBitmap(),
                                                         contentDescription = "Video thumbnail",
@@ -641,7 +641,7 @@ private fun OrbitApp() {
                                                 Spacer(Modifier.height(8.dp))
                                                 Text(video.name, color = OrbitText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis, minLines = 2)
                                                 Spacer(Modifier.height(4.dp))
-                                                Text("${formatDuration(video.durationMs)} • ${formatSize(video.size)}", color = OrbitMuted, fontSize = 9.sp, maxLines = 1)
+                                                
                                             }
                                         }
                                     }
@@ -688,7 +688,7 @@ private fun OrbitApp() {
                                                 Column(Modifier.weight(1f)) {
                                                     Text(video.name, color = OrbitText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                                     Spacer(Modifier.height(4.dp))
-                                                    Text("${formatDuration(video.durationMs)}  •  ${formatSize(video.size)}", color = OrbitMuted, fontSize = 10.sp)
+                                                    
                                                 }
                                                 Text("PLAY", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 1.sp)
                                             }
