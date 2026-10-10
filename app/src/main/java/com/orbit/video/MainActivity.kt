@@ -226,7 +226,7 @@ private fun OrbitApp() {
                             modifier = Modifier.fillMaxSize()
                         )
                     }
-                } else {
+                } else if (currentTab == "Library") {
                     Column(
                         Modifier.fillMaxWidth().weight(1f).background(Color(0xFF050505), RoundedCornerShape(3.dp)).padding(14.dp)
                     ) {
