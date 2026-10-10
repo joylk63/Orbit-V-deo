@@ -20,6 +20,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
@@ -152,6 +157,16 @@ private fun OrbitApp() {
             player.playWhenReady = true
         }
     }
+    LaunchedEffect(mediaUri) {
+        while (mediaUri != null) {
+            val uri = mediaUri
+            if (uri != null && player.currentPosition >= 0L) {
+                prefs.edit().putLong("position:" + uri.toString(), player.currentPosition).apply()
+            }
+            delay(1000)
+        }
+    }
+
     DisposableEffect(mediaUri) {
         onDispose { mediaUri?.let { uri -> prefs.edit().putLong("position:" + uri.toString(), player.currentPosition.coerceAtLeast(0L)).apply() } }
     }
@@ -183,7 +198,7 @@ private fun OrbitApp() {
             }
         ) { padding ->
             Column(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp, vertical = 8.dp).animateContentSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (mediaUri == null && currentTab == "Library") {
@@ -339,47 +354,7 @@ private fun OrbitApp() {
                     }
                 }
 
-                if (mediaUri == null && currentTab == "Library") Column(
-                    Modifier.fillMaxWidth().background(OrbitPanel, RoundedCornerShape(3.dp)).padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(11.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("CURRENT FILE", color = OrbitMuted, fontSize = 10.sp, letterSpacing = 2.sp)
-                            Spacer(Modifier.height(5.dp))
-                            Text(selectedName ?: "No file selected", color = OrbitText, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                        Text("${playbackSpeed}×", color = OrbitText, fontSize = 13.sp,
-                            modifier = Modifier.background(OrbitBlack, RoundedCornerShape(3.dp)).padding(9.dp))
-                    }
-                    HorizontalDivider(color = OrbitLine, thickness = 1.dp)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        FilledIconButton(
-                            onClick = { if (player.isPlaying) player.pause() else player.play() },
-                            enabled = mediaUri != null,
-                            colors = IconButtonDefaults.filledIconButtonColors(containerColor = OrbitText, contentColor = OrbitBlack),
-                            shape = RoundedCornerShape(3.dp)
-                        ) { Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = "Play or pause") }
-                        OutlinedButton(
-                            onClick = {
-                                playbackSpeed = when (playbackSpeed) { 1f -> 1.25f; 1.25f -> 1.5f; 1.5f -> 2f; else -> 1f }
-                                player.setPlaybackSpeed(playbackSpeed)
-                            },
-                            shape = RoundedCornerShape(3.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, OrbitLine),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = OrbitText)
-                        ) {
-                            Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("SPEED", fontSize = 11.sp, letterSpacing = 1.sp)
-                        }
-                        Spacer(Modifier.weight(1f))
-                        IconButton(onClick = { showTrackInfo = !showTrackInfo }) {
-                            Icon(Icons.Default.Subtitles, contentDescription = "Audio and subtitle tracks", tint = if (showTrackInfo) OrbitAccent else OrbitMuted)
-                        }
-                    }
-                    if (showTrackInfo) Text("Audio and subtitle track selection is planned for a later build.", color = OrbitMuted, fontSize = 11.sp)
-                }
+
 
                 if (mediaUri == null && currentTab == "Library") Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("● ● ●", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 2.sp)
@@ -389,8 +364,8 @@ private fun OrbitApp() {
             }
             if (mediaUri == null) {
                 NavigationBar(containerColor = OrbitPanel, contentColor = OrbitText) {
-                    NavigationBarItem(selected = currentTab == "Library", onClick = { currentTab = "Library" }, icon = { Icon(Icons.Default.VideoLibrary, contentDescription = null) }, label = { Text("Library") })
-                    NavigationBarItem(selected = currentTab == "Me", onClick = { currentTab = "Me" }, icon = { Icon(Icons.Default.Person, contentDescription = null) }, label = { Text("Me") })
+                    NavigationBarItem(selected = currentTab == "Library", onClick = { currentTab = "Library"; privacyUnlocked = false }, icon = { Icon(Icons.Default.VideoLibrary, contentDescription = null) }, label = { Text("Library") })
+                    NavigationBarItem(selected = currentTab == "Me", onClick = { currentTab = "Me"; privacyUnlocked = false }, icon = { Icon(Icons.Default.Person, contentDescription = null) }, label = { Text("Me") })
                 }
             }
         }
