@@ -341,7 +341,56 @@ private fun OrbitApp() {
                     Text("DESIGNED FOR YOUR MEDIA", color = OrbitMuted, fontSize = 9.sp, letterSpacing = 1.5.sp)
                 }
             }
+            if (mediaUri == null) {
+                NavigationBar(containerColor = OrbitPanel, contentColor = OrbitText) {
+                    NavigationBarItem(selected = currentTab == "Library", onClick = { currentTab = "Library" }, icon = { Icon(Icons.Default.VideoLibrary, contentDescription = null) }, label = { Text("Library") })
+                    NavigationBarItem(selected = currentTab == "Me", onClick = { currentTab = "Me" }, icon = { Icon(Icons.Default.Person, contentDescription = null) }, label = { Text("Me") })
+                }
+            }
         }
+    }
+    if (showPinDialog) {
+        val privacyPrefs = context.getSharedPreferences("orbit_privacy", Context.MODE_PRIVATE)
+        val storedPin = privacyPrefs.getString("pin", null)
+        AlertDialog(
+            onDismissRequest = { showPinDialog = false; pendingHide = null },
+            title = { Text(if (storedPin == null) "Set privacy PIN" else "Enter privacy PIN") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(if (pendingHide != null) "Enter your PIN to hide this video." else "Create or enter a 4–8 digit PIN.")
+                    OutlinedTextField(value = pinEntry, onValueChange = { if (it.length <= 8 && it.all { ch -> ch.isDigit() }) pinEntry = it }, label = { Text("PIN") }, singleLine = true)
+                    if (pinError.isNotBlank()) Text(pinError, color = OrbitAccent)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    when {
+                        pinEntry.length !in 4..8 -> pinError = "PIN must be 4–8 digits"
+                        storedPin == null -> {
+                            privacyPrefs.edit().putString("pin", pinEntry).apply()
+                            if (pendingHide != null) {
+                                hiddenUris = hiddenUris + pendingHide!!.uri.toString()
+                                privacyPrefs.edit().putStringSet("hidden_uris", hiddenUris).apply()
+                            }
+                            privacyUnlocked = true
+                            pendingHide = null
+                            showPinDialog = false
+                        }
+                        pinEntry == storedPin -> {
+                            if (pendingHide != null) {
+                                hiddenUris = hiddenUris + pendingHide!!.uri.toString()
+                                privacyPrefs.edit().putStringSet("hidden_uris", hiddenUris).apply()
+                                pendingHide = null
+                            }
+                            privacyUnlocked = true
+                            showPinDialog = false
+                        }
+                        else -> pinError = "Incorrect PIN"
+                    }
+                }) { Text("CONFIRM") }
+            },
+            dismissButton = { TextButton(onClick = { showPinDialog = false; pendingHide = null }) { Text("CANCEL") } }
+        )
     }
 }
 
