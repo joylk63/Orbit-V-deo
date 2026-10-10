@@ -528,6 +528,7 @@ private fun OrbitApp() {
                 }
             }
         }
+    }
     if (showPinDialog) {
         val privacyPrefs = context.getSharedPreferences("orbit_privacy", Context.MODE_PRIVATE)
         val storedPin = privacyPrefs.getString("pin", null)
