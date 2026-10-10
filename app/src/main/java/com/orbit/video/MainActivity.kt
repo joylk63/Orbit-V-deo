@@ -43,8 +43,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.QueueMusic
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.Dispatchers
@@ -95,9 +93,6 @@ private fun OrbitApp() {
     var showTrackInfo by remember { mutableStateOf(false) }
     var videos by remember { mutableStateOf<List<LocalVideo>>(emptyList()) }
     var audios by remember { mutableStateOf<List<LocalAudio>>(emptyList()) }
-    var playlists by remember { mutableStateOf(context.getSharedPreferences("orbit_player", Context.MODE_PRIVATE).getStringSet("playlists", emptySet())?.toList()?.sorted() ?: emptyList()) }
-    var showCreatePlaylist by remember { mutableStateOf(false) }
-    var newPlaylistName by remember { mutableStateOf("") }
     var hasPermission by remember { mutableStateOf(hasVideoPermission(context)) }
     var searchQuery by remember { mutableStateOf("") }
     var currentTab by remember { mutableStateOf("Video") }
@@ -212,7 +207,6 @@ private fun OrbitApp() {
                         NavigationBarItem(selected = currentTab == "Video", onClick = { currentTab = "Video"; privacyUnlocked = false }, icon = { Icon(Icons.Default.VideoLibrary, contentDescription = null) }, label = { Text("Video", maxLines = 1) })
                         NavigationBarItem(selected = currentTab == "Music", onClick = { currentTab = "Music"; privacyUnlocked = false }, icon = { Icon(Icons.Default.MusicNote, contentDescription = null) }, label = { Text("Music", maxLines = 1) })
                         NavigationBarItem(selected = currentTab == "Folder", onClick = { currentTab = "Folder"; privacyUnlocked = false }, icon = { Icon(Icons.Default.Folder, contentDescription = null) }, label = { Text("Folder", maxLines = 1) })
-                        NavigationBarItem(selected = currentTab == "Playlist", onClick = { currentTab = "Playlist"; privacyUnlocked = false }, icon = { Icon(Icons.Default.QueueMusic, contentDescription = null) }, label = { Text("Playlist", maxLines = 1) })
                         NavigationBarItem(selected = currentTab == "Me", onClick = { currentTab = "Me"; privacyUnlocked = false }, icon = { Icon(Icons.Default.Person, contentDescription = null) }, label = { Text("Me", maxLines = 1) })
                     }
                 }
@@ -274,29 +268,7 @@ private fun OrbitApp() {
                             }
                         }
                     }
-                } else if (currentTab == "Playlist" && mediaUri == null) {
-                    Column(Modifier.fillMaxWidth().weight(1f).background(OrbitPanel, RoundedCornerShape(12.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("YOUR PLAYLISTS", color = OrbitText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Create named collections for your video library.", color = OrbitMuted, fontSize = 12.sp)
-                        Button(onClick = { newPlaylistName = ""; showCreatePlaylist = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = OrbitAccent)) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("CREATE PLAYLIST")
-                        }
-                        if (playlists.isEmpty()) Text("No playlists yet", color = OrbitMuted, fontSize = 12.sp)
-                        playlists.forEach { name ->
-                            Row(Modifier.fillMaxWidth().background(OrbitBlack, RoundedCornerShape(8.dp)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.QueueMusic, contentDescription = null, tint = OrbitAccent)
-                                Spacer(Modifier.width(10.dp))
-                                Text(name, color = OrbitText, modifier = Modifier.weight(1f))
-                                TextButton(onClick = {
-                                    playlists = playlists.filterNot { it == name }
-                                    context.getSharedPreferences("orbit_player", Context.MODE_PRIVATE).edit().putStringSet("playlists", playlists.toSet()).apply()
-                                }) { Text("REMOVE", color = OrbitAccent) }
-                            }
-                        }
-                    }
-                }
+
 
                 if (currentTab == "Me" && mediaUri == null) {
                     Column(Modifier.fillMaxWidth().weight(1f).background(OrbitPanel, RoundedCornerShape(12.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -451,24 +423,6 @@ private fun OrbitApp() {
                 }
             }
         }
-    }
-    if (showCreatePlaylist) {
-        AlertDialog(
-            onDismissRequest = { showCreatePlaylist = false },
-            title = { Text("Create playlist") },
-            text = { OutlinedTextField(value = newPlaylistName, onValueChange = { newPlaylistName = it.take(48) }, label = { Text("Playlist name") }, singleLine = true) },
-            confirmButton = {
-                TextButton(onClick = {
-                    val name = newPlaylistName.trim()
-                    if (name.isNotEmpty() && name !in playlists) {
-                        playlists = (playlists + name).sorted()
-                        context.getSharedPreferences("orbit_player", Context.MODE_PRIVATE).edit().putStringSet("playlists", playlists.toSet()).apply()
-                    }
-                    showCreatePlaylist = false
-                }) { Text("CREATE") }
-            },
-            dismissButton = { TextButton(onClick = { showCreatePlaylist = false }) { Text("CANCEL") } }
-        )
     }
     if (showPinDialog) {
         val privacyPrefs = context.getSharedPreferences("orbit_privacy", Context.MODE_PRIVATE)
