@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <application android:allowBackup="true" android:label="Orbit V!deo" android:supportsRtl="true" android:theme="@android:style/Theme.Material.NoActionBar">
+    <application android:allowBackup="true" android:icon="@drawable/orbit_logo" android:roundIcon="@drawable/orbit_logo" android:label="Orbit V!deo" android:supportsRtl="true" android:theme="@android:style/Theme.Material.NoActionBar">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
