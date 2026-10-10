@@ -495,7 +495,7 @@ private fun OrbitApp() {
                                 val filteredVideos = videos.filter { it.uri.toString() !in hiddenUris && it.name.contains(searchQuery, ignoreCase = true) }
                                 if (gridView) {
                                     LazyVerticalGrid(
-                                        columns = GridCells.Adaptive(minSize = 142.dp),
+                                        columns = GridCells.Adaptive(minSize = 160.dp),
                                         modifier = Modifier.fillMaxWidth().weight(1f),
                                         verticalArrangement = Arrangement.spacedBy(9.dp),
                                         horizontalArrangement = Arrangement.spacedBy(9.dp)
@@ -514,7 +514,7 @@ private fun OrbitApp() {
                                                     .combinedClickable(onClick = { mediaUri = video.uri; selectedName = video.name }, onLongClick = { pendingHide = video; pinEntry = ""; pinError = ""; showPinDialog = true })
                                                     .padding(8.dp)
                                             ) {
-                                                Box(Modifier.fillMaxWidth().aspectRatio(1.55f).background(Color(0xFF242424), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
+                                                Box(Modifier.fillMaxWidth().aspectRatio(1.28f).background(Color(0xFF242424), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
                                                     if (thumbnail != null) Image(
                                                         bitmap = thumbnail!!.asImageBitmap(),
                                                         contentDescription = "Video thumbnail",
@@ -541,7 +541,7 @@ private fun OrbitApp() {
                                             val thumbnail by produceState<Bitmap?>(initialValue = null, video.uri) {
                                                 value = withContext(Dispatchers.IO) {
                                                     if (Build.VERSION.SDK_INT >= 29) runCatching {
-                                                        context.contentResolver.loadThumbnail(video.uri, Size(160, 100), null)
+                                                        context.contentResolver.loadThumbnail(video.uri, Size(240, 160), null)
                                                     }.getOrNull() else null
                                                 }
                                             }
@@ -551,7 +551,7 @@ private fun OrbitApp() {
                                                     .padding(horizontal = 12.dp, vertical = 13.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Box(Modifier.size(width = 112.dp, height = 74.dp).background(Color(0xFF242424), RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
+                                                Box(Modifier.size(width = 136.dp, height = 90.dp).background(Color(0xFF242424), RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
                                                     if (thumbnail != null) {
                                                         Image(
                                                             bitmap = thumbnail!!.asImageBitmap(),
