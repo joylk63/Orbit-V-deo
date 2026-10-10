@@ -196,6 +196,24 @@ private fun OrbitApp() {
                         Icon(Icons.Default.VideoLibrary, contentDescription = "Refresh video library", tint = OrbitText)
                     }
                 }
+            },
+            bottomBar = {
+                if (mediaUri == null) {
+                    NavigationBar(containerColor = OrbitPanel, contentColor = OrbitText) {
+                        NavigationBarItem(
+                            selected = currentTab == "Library",
+                            onClick = { currentTab = "Library"; privacyUnlocked = false },
+                            icon = { Icon(Icons.Default.VideoLibrary, contentDescription = null) },
+                            label = { Text("Library") }
+                        )
+                        NavigationBarItem(
+                            selected = currentTab == "Me",
+                            onClick = { currentTab = "Me"; privacyUnlocked = false },
+                            icon = { Icon(Icons.Default.Person, contentDescription = null) },
+                            label = { Text("Me") }
+                        )
+                    }
+                }
             }
         ) { padding ->
             Column(
@@ -361,12 +379,6 @@ private fun OrbitApp() {
                     Text("● ● ●", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 2.sp)
                     Spacer(Modifier.weight(1f))
                     Text("DESIGNED FOR YOUR MEDIA", color = OrbitMuted, fontSize = 9.sp, letterSpacing = 1.5.sp)
-                }
-            }
-            if (mediaUri == null) {
-                NavigationBar(containerColor = OrbitPanel, contentColor = OrbitText) {
-                    NavigationBarItem(selected = currentTab == "Library", onClick = { currentTab = "Library"; privacyUnlocked = false }, icon = { Icon(Icons.Default.VideoLibrary, contentDescription = null) }, label = { Text("Library") })
-                    NavigationBarItem(selected = currentTab == "Me", onClick = { currentTab = "Me"; privacyUnlocked = false }, icon = { Icon(Icons.Default.Person, contentDescription = null) }, label = { Text("Me") })
                 }
             }
         }
