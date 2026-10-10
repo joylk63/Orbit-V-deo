@@ -195,6 +195,29 @@ private fun OrbitApp() {
     DisposableEffect(mediaUri) {
         onDispose { mediaUri?.let { uri -> prefs.edit().putLong("position:" + uri.toString(), player.currentPosition.coerceAtLeast(0L)).apply() } }
     }
+    DisposableEffect(mediaUri, isLandscape) {
+        val activity = context as? ComponentActivity
+        val decor = activity?.window?.decorView
+        val previousVisibility = decor?.systemUiVisibility ?: 0
+        if (mediaUri != null && isLandscape) {
+            activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            decor?.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                )
+        } else {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            decor?.systemUiVisibility = previousVisibility
+        }
+        onDispose {
+            decor?.systemUiVisibility = previousVisibility
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        }
+    }
     DisposableEffect(Unit) { onDispose { player.release() } }
 
     MaterialTheme(colorScheme = darkColorScheme(
