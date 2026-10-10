@@ -171,6 +171,9 @@ private fun OrbitApp() {
         mediaUri = null
         selectedName = null
         showTrackInfo = false
+        controlsLocked = false
+        (context as? ComponentActivity)?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        landscapeMode = false
     }
 
     LaunchedEffect(Unit) { refreshVideos() }
@@ -268,7 +271,7 @@ private fun OrbitApp() {
                 if (mediaUri == null && (currentTab == "Video" || currentTab == "Music")) {
                     OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.fillMaxWidth().animateContentSize(), placeholder = { Text("Search videos", color = OrbitMuted) }, leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = OrbitMuted) }, singleLine = true, shape = RoundedCornerShape(10.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = OrbitText, unfocusedTextColor = OrbitText, focusedBorderColor = OrbitAccent, unfocusedBorderColor = OrbitLine, cursorColor = OrbitAccent))
                 }
-                if (currentTab == "Video" || currentTab == "Music") Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                if (mediaUri == null && (currentTab == "Video" || currentTab == "Music")) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(if (mediaUri == null) "YOUR LIBRARY" else "NOW / PLAYING", color = OrbitMuted, fontSize = 10.sp, letterSpacing = 2.sp)
                     Spacer(Modifier.weight(1f))
                     Text("●  LOCAL MEDIA", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 1.sp)
