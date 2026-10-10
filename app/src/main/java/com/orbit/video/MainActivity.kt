@@ -294,7 +294,7 @@ private fun OrbitApp() {
                                 label = "nav-pill-position"
                             )
                             Box(
-                                Modifier.offset(x = indicatorX).width(itemWidth).height(42.dp)
+                                Modifier.align(Alignment.CenterStart).offset(x = indicatorX).width(itemWidth).height(42.dp)
                                     .clip(RoundedCornerShape(50))
                                     .background(OrbitText)
                             )
