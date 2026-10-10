@@ -195,7 +195,33 @@ private fun OrbitApp() {
                     Text("●  LOCAL MEDIA", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 1.sp)
                 }
 
-                if (mediaUri != null) {
+                if (currentTab == "Me" && mediaUri == null) {
+                    Column(Modifier.fillMaxWidth().weight(1f).background(OrbitPanel, RoundedCornerShape(12.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Text("ABOUT ORBIT", color = OrbitText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Developer: Joy", color = OrbitMuted, fontSize = 14.sp)
+                        OutlinedButton(onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse("https://www.facebook.com/IMALONEJOY"))) }, modifier = Modifier.fillMaxWidth()) { Text("DEVELOPER FACEBOOK", color = OrbitText) }
+                        HorizontalDivider(color = OrbitLine)
+                        Text("PRIVACY", color = OrbitText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("Long-press any video in Library to hide it. Hidden videos are excluded from search and the main list.", color = OrbitMuted, fontSize = 12.sp)
+                        Button(onClick = { pinEntry = ""; pinError = ""; showPinDialog = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = OrbitAccent)) {
+                            Icon(Icons.Default.Lock, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (privacyUnlocked) "MANAGE HIDDEN VIDEOS" else "SET / ENTER PRIVACY PIN")
+                        }
+                        if (privacyUnlocked) {
+                            Text(hiddenUris.size.toString() + " hidden videos", color = OrbitMuted, fontSize = 12.sp)
+                            hiddenUris.forEach { hidden ->
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(hidden.substringAfterLast("/"), color = OrbitText, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    TextButton(onClick = {
+                                        hiddenUris = hiddenUris - hidden
+                                        context.getSharedPreferences("orbit_privacy", Context.MODE_PRIVATE).edit().putStringSet("hidden_uris", hiddenUris).apply()
+                                    }) { Text("UNHIDE", color = OrbitAccent) }
+                                }
+                            }
+                        }
+                    }
+                } else if (mediaUri != null) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = {
                             player.pause()
