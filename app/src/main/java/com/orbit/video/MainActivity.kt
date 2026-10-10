@@ -268,7 +268,7 @@ private fun OrbitApp() {
                             }
                         }
                     }
-
+                }
 
                 if (currentTab == "Me" && mediaUri == null) {
                     Column(Modifier.fillMaxWidth().weight(1f).background(OrbitPanel, RoundedCornerShape(12.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
