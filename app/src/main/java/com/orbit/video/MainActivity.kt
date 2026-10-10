@@ -630,6 +630,13 @@ private fun OrbitApp() {
                                                     Box(Modifier.align(Alignment.Center).background(Color(0x77000000), RoundedCornerShape(50)).padding(4.dp)) {
                                                         Icon(Icons.Default.PlayArrow, contentDescription = "Play video", tint = Color.White)
                                                     }
+                                                    Box(
+                                                        Modifier.align(Alignment.BottomEnd).padding(5.dp)
+                                                            .background(Color(0xCC000000), RoundedCornerShape(4.dp))
+                                                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(formatDuration(video.durationMs), color = Color.White, fontSize = 9.sp, maxLines = 1)
+                                                    }
                                                 }
                                                 Spacer(Modifier.height(8.dp))
                                                 Text(video.name, color = OrbitText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis, minLines = 2)
@@ -668,6 +675,13 @@ private fun OrbitApp() {
                                                         Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
                                                     } else {
                                                         Icon(Icons.Default.PlayArrow, contentDescription = null, tint = OrbitText)
+                                                    }
+                                                    Box(
+                                                        Modifier.align(Alignment.BottomEnd).padding(4.dp)
+                                                            .background(Color(0xCC000000), RoundedCornerShape(4.dp))
+                                                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(formatDuration(video.durationMs), color = Color.White, fontSize = 9.sp, maxLines = 1)
                                                     }
                                                 }
                                                 Spacer(Modifier.width(12.dp))
