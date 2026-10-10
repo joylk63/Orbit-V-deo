@@ -39,6 +39,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.awaitFirstDown
+import androidx.compose.ui.input.pointer.waitForUpOrCancellation
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
@@ -108,6 +113,9 @@ private fun OrbitApp() {
     var mediaUri by remember { mutableStateOf<Uri?>(null) }
     var selectedName by remember { mutableStateOf<String?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
+    var playbackPosition by remember { mutableLongStateOf(0L) }
+    var playbackDuration by remember { mutableLongStateOf(0L) }
+    var showPlayerControls by remember { mutableStateOf(true) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var showTrackInfo by remember { mutableStateOf(false) }
     var videos by remember { mutableStateOf<List<LocalVideo>>(emptyList()) }
@@ -199,6 +207,9 @@ private fun OrbitApp() {
     LaunchedEffect(mediaUri) {
         mediaUri?.let { uri ->
             val savedPosition = prefs.getLong("position:" + uri.toString(), 0L)
+            showPlayerControls = true
+            playbackPosition = savedPosition
+            playbackDuration = 0L
             player.setMediaItem(MediaItem.fromUri(uri), savedPosition)
             player.prepare()
             player.playWhenReady = true
@@ -211,6 +222,23 @@ private fun OrbitApp() {
                 prefs.edit().putLong("position:" + uri.toString(), player.currentPosition).apply()
             }
             delay(1000)
+        }
+    }
+
+    LaunchedEffect(mediaUri) {
+        while (mediaUri != null) {
+            playbackPosition = player.currentPosition.coerceAtLeast(0L)
+            playbackDuration = player.duration.takeIf { it > 0L && it != C.TIME_UNSET } ?: 0L
+            delay(250)
+        }
+        playbackPosition = 0L
+        playbackDuration = 0L
+    }
+
+    LaunchedEffect(mediaUri, isPlaying, showPlayerControls, controlsLocked) {
+        if (mediaUri != null && isPlaying && showPlayerControls && !controlsLocked) {
+            delay(3000)
+            showPlayerControls = false
         }
     }
 
@@ -505,23 +533,33 @@ private fun OrbitApp() {
                             }
                         }
                     }
-                    Box(Modifier.fillMaxWidth().weight(1f).background(Color.Black), contentAlignment = Alignment.Center) {
+                    Box(
+                        Modifier.fillMaxWidth().weight(1f).background(Color.Black)
+                            .pointerInput(mediaUri) {
+                                awaitEachGesture {
+                                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                    val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
+                                    if (up != null && mediaUri != null && !controlsLocked) showPlayerControls = true
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
                         AndroidView(
                             factory = { viewContext -> PlayerView(viewContext).apply {
                                 this.player = player
-                                useController = true
-                                controllerAutoShow = true
+                                useController = false
+                                controllerAutoShow = false
                                 resizeMode = if (fillVideo) androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM else androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                                 setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                                 setShutterBackgroundColor(android.graphics.Color.BLACK)
                             } },
-                            update = { it.player = player; it.resizeMode = if (fillVideo) androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM else androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT; it.useController = !controlsLocked },
+                            update = { it.player = player; it.resizeMode = if (fillVideo) androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM else androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT; it.useController = false },
                             modifier = Modifier.fillMaxSize()
                         )
-                        if (!controlsLocked) {
+                        if (showPlayerControls && !controlsLocked) {
                             Column(Modifier.align(Alignment.CenterStart).padding(start = 6.dp).background(Color(0x77000000), RoundedCornerShape(10.dp)), horizontalAlignment = Alignment.CenterHorizontally) {
                                 TextButton(onClick = { player.volume = if (isMuted) 1f else 0f; isMuted = !isMuted }) { Text(if (isMuted) "🔇" else "🔊", color = Color.White, fontSize = 20.sp) }
-                                TextButton(onClick = { controlsLocked = true }) { Text("🔒", color = Color.White, fontSize = 20.sp) }
+                                TextButton(onClick = { controlsLocked = true; showPlayerControls = true }) { Text("🔒", color = Color.White, fontSize = 20.sp) }
                             }
                             Column(Modifier.align(Alignment.CenterEnd).padding(end = 6.dp).background(Color(0x77000000), RoundedCornerShape(10.dp)), horizontalAlignment = Alignment.CenterHorizontally) {
                                 TextButton(onClick = { fillVideo = !fillVideo }) { Text("✂", color = Color.White, fontSize = 22.sp) }
@@ -533,16 +571,16 @@ private fun OrbitApp() {
                             }
                             Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color(0x99000000)).padding(horizontal = 8.dp, vertical = if (isLandscape) 2.dp else 6.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(formatDuration(player.currentPosition), color = Color.White, fontSize = 10.sp)
+                                    Text(formatDuration(playbackPosition), color = Color.White, fontSize = 10.sp)
                                     Spacer(Modifier.width(8.dp))
                                     Slider(
-                                        value = if (player.duration > 0L) player.currentPosition.coerceIn(0L, player.duration).toFloat() / player.duration.toFloat() else 0f,
-                                        onValueChange = { fraction -> if (player.duration > 0L) player.seekTo((fraction * player.duration).toLong()) },
+                                        value = if (playbackDuration > 0L) playbackPosition.coerceIn(0L, playbackDuration).toFloat() / playbackDuration.toFloat() else 0f,
+                                        onValueChange = { fraction -> if (playbackDuration > 0L) { val target = (fraction * playbackDuration).toLong().coerceIn(0L, playbackDuration); playbackPosition = target; player.seekTo(target); showPlayerControls = true } },
                                         modifier = Modifier.weight(1f).height(22.dp),
                                         colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color(0xFF27C786), inactiveTrackColor = OrbitMuted)
                                     )
                                     Spacer(Modifier.width(8.dp))
-                                    Text(formatDuration(player.duration.coerceAtLeast(0L)), color = Color.White, fontSize = 10.sp)
+                                    Text(formatDuration(playbackDuration), color = Color.White, fontSize = 10.sp)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
                                     TextButton(onClick = { if (player.isPlaying) player.pause() else player.play() }) { Text(if (isPlaying) "Ⅱ" else "▶", color = Color.White, fontSize = 22.sp) }
