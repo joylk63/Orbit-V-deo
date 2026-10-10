@@ -184,7 +184,7 @@ private fun OrbitApp() {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text("VIDEOS ON DEVICE", color = OrbitText, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                                Text(if (hasPermission) "\${videos.size} videos found" else "Allow access to scan your videos", color = OrbitMuted, fontSize = 11.sp)
+                                Text(if (hasPermission) "${videos.size} videos found" else "Allow access to scan your videos", color = OrbitMuted, fontSize = 11.sp)
                             }
                             if (hasPermission) TextButton(onClick = { refreshVideos() }) { Text("REFRESH", color = OrbitAccent, fontSize = 10.sp) }
                         }
@@ -238,7 +238,7 @@ private fun OrbitApp() {
                                             Column(Modifier.weight(1f)) {
                                                 Text(video.name, color = OrbitText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                                 Spacer(Modifier.height(4.dp))
-                                                Text("\${formatDuration(video.durationMs)}  •  \${formatSize(video.size)}", color = OrbitMuted, fontSize = 10.sp)
+                                                Text("${formatDuration(video.durationMs)}  •  ${formatSize(video.size)}", color = OrbitMuted, fontSize = 10.sp)
                                             }
                                             Text("PLAY", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 1.sp)
                                         }
@@ -259,7 +259,7 @@ private fun OrbitApp() {
                             Spacer(Modifier.height(5.dp))
                             Text(selectedName ?: "No file selected", color = OrbitText, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        Text("\${playbackSpeed}×", color = OrbitText, fontSize = 13.sp,
+                        Text("${playbackSpeed}×", color = OrbitText, fontSize = 13.sp,
                             modifier = Modifier.background(OrbitBlack, RoundedCornerShape(3.dp)).padding(9.dp))
                     }
                     HorizontalDivider(color = OrbitLine, thickness = 1.dp)
@@ -333,7 +333,7 @@ private fun queryVideos(context: Context): List<LocalVideo> {
         MediaStore.Video.Media.SIZE
     )
     val result = mutableListOf<LocalVideo>()
-    val sortOrder = "\${MediaStore.Video.Media.DATE_ADDED} DESC"
+    val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
     context.contentResolver.query(collection, projection, null, null, sortOrder)?.use { cursor ->
         val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
         val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
@@ -358,5 +358,5 @@ private fun formatDuration(ms: Long): String {
 }
 
 private fun formatSize(bytes: Long): String {
-    return if (bytes >= 1024L * 1024L) "\${bytes / (1024L * 1024L)} MB" else "\${bytes / 1024L} KB"
+    return if (bytes >= 1024L * 1024L) "${bytes / (1024L * 1024L)} MB" else "${bytes / 1024L} KB"
 }
