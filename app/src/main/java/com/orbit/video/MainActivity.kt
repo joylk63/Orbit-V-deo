@@ -52,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -193,9 +194,11 @@ private fun OrbitApp() {
                         Text("ORBIT", color = OrbitText, fontWeight = FontWeight.Black, letterSpacing = 4.sp, fontSize = 27.sp)
                         Text("V!DEO PLAYER  /  002", fontSize = 10.sp, color = OrbitMuted, letterSpacing = 2.sp)
                     }
-                    Box(Modifier.size(34.dp).background(OrbitAccent, RoundedCornerShape(50)), contentAlignment = Alignment.Center) {
-                        Text("●", color = OrbitBlack, fontSize = 15.sp)
-                    }
+                    Image(
+                        painter = painterResource(id = R.drawable.orbit_logo),
+                        contentDescription = "Orbit V!deo logo",
+                        modifier = Modifier.size(42.dp)
+                    )
                     IconButton(onClick = { if (!hasPermission) requestMediaPermission() else refreshVideos() }) {
                         Icon(Icons.Default.VideoLibrary, contentDescription = "Refresh video library", tint = OrbitText)
                     }
