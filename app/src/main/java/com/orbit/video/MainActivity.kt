@@ -1,14 +1,23 @@
 package com.orbit.video
 
+import android.Manifest
+import android.content.ContentUris
+import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
@@ -16,6 +25,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,9 +33,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -37,6 +49,8 @@ private val OrbitAccent = Color(0xFFE53935)
 private val OrbitText = Color(0xFFF4F4F0)
 private val OrbitMuted = Color(0xFF92928D)
 private val OrbitLine = Color(0xFF303030)
+
+private data class LocalVideo(val uri: Uri, val name: String, val durationMs: Long, val size: Long)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,9 +66,33 @@ class MainActivity : ComponentActivity() {
 private fun OrbitApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
     var mediaUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedName by remember { mutableStateOf<String?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var showTrackInfo by remember { mutableStateOf(false) }
+    var videos by remember { mutableStateOf<List<LocalVideo>>(emptyList()) }
+    var hasPermission by remember { mutableStateOf(hasVideoPermission(context)) }
+
+    fun refreshVideos() {
+        hasPermission = hasVideoPermission(context)
+        if (hasPermission) videos = queryVideos(context)
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        hasPermission = hasVideoPermission(context)
+        if (hasPermission) videos = queryVideos(context)
+    }
+
+    fun requestMediaPermission() {
+        val permissions = if (Build.VERSION.SDK_INT >= 33) {
+            arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
+        } else {
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+        permissionLauncher.launch(permissions)
+    }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -64,6 +102,7 @@ private fun OrbitApp() {
                 )
             }
             mediaUri = uri
+            selectedName = uri.lastPathSegment?.substringAfterLast('/') ?: "Selected media"
         }
     }
 
@@ -74,6 +113,8 @@ private fun OrbitApp() {
             })
         }
     }
+
+    LaunchedEffect(Unit) { refreshVideos() }
     LaunchedEffect(mediaUri) {
         mediaUri?.let {
             player.setMediaItem(MediaItem.fromUri(it))
@@ -97,33 +138,32 @@ private fun OrbitApp() {
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text("ORBIT", color = OrbitText, fontWeight = FontWeight.Black, letterSpacing = 4.sp, fontSize = 27.sp)
-                        Text("V!DEO PLAYER  /  001", fontSize = 10.sp, color = OrbitMuted, letterSpacing = 2.sp)
+                        Text("V!DEO PLAYER  /  002", fontSize = 10.sp, color = OrbitMuted, letterSpacing = 2.sp)
                     }
                     Box(Modifier.size(34.dp).background(OrbitAccent, RoundedCornerShape(50)), contentAlignment = Alignment.Center) {
                         Text("●", color = OrbitBlack, fontSize = 15.sp)
                     }
-                    IconButton(onClick = { picker.launch(arrayOf("video/*", "audio/*")) }) {
-                        Icon(Icons.Default.FolderOpen, contentDescription = "Open media", tint = OrbitText)
+                    IconButton(onClick = { if (!hasPermission) requestMediaPermission() else refreshVideos() }) {
+                        Icon(Icons.Default.VideoLibrary, contentDescription = "Refresh video library", tint = OrbitText)
                     }
                 }
             }
         ) { padding ->
             Column(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("NOW / PLAYING", color = OrbitMuted, fontSize = 10.sp, letterSpacing = 2.sp)
+                    Text(if (mediaUri == null) "YOUR LIBRARY" else "NOW / PLAYING", color = OrbitMuted, fontSize = 10.sp, letterSpacing = 2.sp)
                     Spacer(Modifier.weight(1f))
                     Text("●  LOCAL MEDIA", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 1.sp)
                 }
 
-                Box(
-                    modifier = Modifier.fillMaxWidth().weight(1f)
-                        .background(Color(0xFF050505), RoundedCornerShape(3.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (mediaUri != null) {
+                if (mediaUri != null) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().weight(1f).background(Color(0xFF050505), RoundedCornerShape(3.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
                         AndroidView(
                             factory = { viewContext ->
                                 PlayerView(viewContext).apply {
@@ -136,37 +176,88 @@ private fun OrbitApp() {
                             update = { it.player = player },
                             modifier = Modifier.fillMaxSize()
                         )
-                    } else {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            OrbitDotMark()
-                            Spacer(Modifier.height(22.dp))
-                            Text("NOTHING TO PLAY", color = OrbitText, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                            Spacer(Modifier.height(8.dp))
-                            Text("Choose a file to enter your orbit.", color = OrbitMuted, fontSize = 12.sp)
-                            Spacer(Modifier.height(24.dp))
-                            OutlinedButton(
-                                onClick = { picker.launch(arrayOf("video/*", "audio/*")) },
-                                shape = RoundedCornerShape(3.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, OrbitLine),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = OrbitText)
-                            ) {
-                                Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(10.dp))
-                                Text("BROWSE FILES", letterSpacing = 1.5.sp, fontSize = 11.sp)
+                    }
+                } else {
+                    Column(
+                        Modifier.fillMaxWidth().weight(1f).background(Color(0xFF050505), RoundedCornerShape(3.dp)).padding(14.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("VIDEOS ON DEVICE", color = OrbitText, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                                Text(if (hasPermission) "\${videos.size} videos found" else "Allow access to scan your videos", color = OrbitMuted, fontSize = 11.sp)
+                            }
+                            if (hasPermission) TextButton(onClick = { refreshVideos() }) { Text("REFRESH", color = OrbitAccent, fontSize = 10.sp) }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        when {
+                            !hasPermission -> {
+                                Spacer(Modifier.height(20.dp))
+                                OrbitDotMark()
+                                Spacer(Modifier.height(12.dp))
+                                Text("LET ORBIT FIND YOUR VIDEOS", color = OrbitText, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                                Spacer(Modifier.height(8.dp))
+                                Text("Allow video access. Your device videos will appear here; you won't need to browse folders each time.", color = OrbitMuted, fontSize = 12.sp)
+                                Spacer(Modifier.height(16.dp))
+                                OutlinedButton(
+                                    onClick = { requestMediaPermission() },
+                                    shape = RoundedCornerShape(3.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, OrbitLine),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = OrbitText)
+                                ) { Text("ALLOW STORAGE ACCESS", letterSpacing = 1.sp, fontSize = 11.sp) }
+                            }
+                            videos.isEmpty() -> {
+                                Spacer(Modifier.height(28.dp))
+                                Text("NO VIDEOS FOUND", color = OrbitText, fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                                Spacer(Modifier.height(6.dp))
+                                Text("Try Refresh, or open a video stored in another location.", color = OrbitMuted, fontSize = 12.sp)
+                                Spacer(Modifier.height(12.dp))
+                                OutlinedButton(onClick = { picker.launch(arrayOf("video/*")) }) {
+                                    Icon(Icons.Default.FolderOpen, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("OPEN FILE")
+                                }
+                            }
+                            else -> {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxWidth().weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                                ) {
+                                    items(videos, key = { it.uri.toString() }) { video ->
+                                        Row(
+                                            Modifier.fillMaxWidth().background(OrbitPanel, RoundedCornerShape(3.dp))
+                                                .clickable {
+                                                    mediaUri = video.uri
+                                                    selectedName = video.name
+                                                }.padding(horizontal = 12.dp, vertical = 13.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(Modifier.size(40.dp).background(Color(0xFF242424), RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
+                                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = OrbitText)
+                                            }
+                                            Spacer(Modifier.width(12.dp))
+                                            Column(Modifier.weight(1f)) {
+                                                Text(video.name, color = OrbitText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                                Spacer(Modifier.height(4.dp))
+                                                Text("\${formatDuration(video.durationMs)}  •  \${formatSize(video.size)}", color = OrbitMuted, fontSize = 10.sp)
+                                            }
+                                            Text("PLAY", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 1.sp)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
 
                 Column(
-                    Modifier.fillMaxWidth().background(OrbitPanel, RoundedCornerShape(3.dp)).padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(13.dp)
+                    Modifier.fillMaxWidth().background(OrbitPanel, RoundedCornerShape(3.dp)).padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(11.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("CURRENT FILE", color = OrbitMuted, fontSize = 10.sp, letterSpacing = 2.sp)
                             Spacer(Modifier.height(5.dp))
-                            Text(mediaUri?.lastPathSegment ?: "No file selected", color = OrbitText, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            Text(selectedName ?: "No file selected", color = OrbitText, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         Text("\${playbackSpeed}×", color = OrbitText, fontSize = 13.sp,
                             modifier = Modifier.background(OrbitBlack, RoundedCornerShape(3.dp)).padding(9.dp))
@@ -178,9 +269,7 @@ private fun OrbitApp() {
                             enabled = mediaUri != null,
                             colors = IconButtonDefaults.filledIconButtonColors(containerColor = OrbitText, contentColor = OrbitBlack),
                             shape = RoundedCornerShape(3.dp)
-                        ) {
-                            Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = "Play or pause")
-                        }
+                        ) { Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = "Play or pause") }
                         OutlinedButton(
                             onClick = {
                                 playbackSpeed = when (playbackSpeed) { 1f -> 1.25f; 1.25f -> 1.5f; 1.5f -> 2f; else -> 1f }
@@ -199,12 +288,10 @@ private fun OrbitApp() {
                             Icon(Icons.Default.Subtitles, contentDescription = "Audio and subtitle tracks", tint = if (showTrackInfo) OrbitAccent else OrbitMuted)
                         }
                     }
-                    if (showTrackInfo) {
-                        Text("Audio and subtitle track selection will be added in the next build.", color = OrbitMuted, fontSize = 11.sp)
-                    }
+                    if (showTrackInfo) Text("Audio and subtitle track selection is planned for a later build.", color = OrbitMuted, fontSize = 11.sp)
                 }
 
-                Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("● ● ●", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 2.sp)
                     Spacer(Modifier.weight(1f))
                     Text("DESIGNED FOR YOUR MEDIA", color = OrbitMuted, fontSize = 9.sp, letterSpacing = 1.5.sp)
@@ -216,22 +303,60 @@ private fun OrbitApp() {
 
 @Composable
 private fun OrbitDotMark() {
-    Canvas(Modifier.size(width = 104.dp, height = 82.dp)) {
-        val radius = 2.1.dp.toPx()
-        val gap = 10.dp.toPx()
+    Canvas(Modifier.size(width = 88.dp, height = 64.dp)) {
+        val radius = 2.dp.toPx()
+        val gap = 9.dp.toPx()
         val cx = size.width / 2
         val cy = size.height / 2
-        for (row in -3..3) {
-            for (col in -4..4) {
-                val distance = kotlin.math.sqrt((row * row + col * col).toFloat())
-                if (distance in 1.2f..4.9f) {
-                    drawCircle(
-                        color = if ((row + col) % 5 == 0) OrbitAccent else OrbitText,
-                        radius = radius,
-                        center = Offset(cx + col * gap, cy + row * gap)
-                    )
-                }
-            }
+        for (row in -3..3) for (col in -4..4) {
+            val distance = kotlin.math.sqrt((row * row + col * col).toFloat())
+            if (distance in 1.2f..4.9f) drawCircle(
+                color = if ((row + col) % 5 == 0) OrbitAccent else OrbitText,
+                radius = radius,
+                center = Offset(cx + col * gap, cy + row * gap)
+            )
         }
     }
+}
+
+private fun hasVideoPermission(context: Context): Boolean {
+    val permission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_VIDEO else Manifest.permission.READ_EXTERNAL_STORAGE
+    return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+}
+
+private fun queryVideos(context: Context): List<LocalVideo> {
+    val collection = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+    val projection = arrayOf(
+        MediaStore.Video.Media._ID,
+        MediaStore.Video.Media.DISPLAY_NAME,
+        MediaStore.Video.Media.DURATION,
+        MediaStore.Video.Media.SIZE
+    )
+    val result = mutableListOf<LocalVideo>()
+    val sortOrder = "\${MediaStore.Video.Media.DATE_ADDED} DESC"
+    context.contentResolver.query(collection, projection, null, null, sortOrder)?.use { cursor ->
+        val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+        val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+        val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+        val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
+        while (cursor.moveToNext()) {
+            val id = cursor.getLong(idCol)
+            result += LocalVideo(
+                ContentUris.withAppendedId(collection, id),
+                cursor.getString(nameCol) ?: "Video",
+                cursor.getLong(durationCol),
+                cursor.getLong(sizeCol)
+            )
+        }
+    }
+    return result
+}
+
+private fun formatDuration(ms: Long): String {
+    val total = ms / 1000
+    return "%d:%02d".format(total / 60, total % 60)
+}
+
+private fun formatSize(bytes: Long): String {
+    return if (bytes >= 1024L * 1024L) "\${bytes / (1024L * 1024L)} MB" else "\${bytes / 1024L} KB"
 }
