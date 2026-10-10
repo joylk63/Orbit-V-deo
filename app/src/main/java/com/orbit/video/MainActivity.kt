@@ -41,6 +41,10 @@ import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.Dispatchers
@@ -68,7 +72,8 @@ private val OrbitText = Color(0xFFF4F4F0)
 private val OrbitMuted = Color(0xFF92928D)
 private val OrbitLine = Color(0xFF303030)
 
-private data class LocalVideo(val uri: Uri, val name: String, val durationMs: Long, val size: Long)
+private data class LocalVideo(val uri: Uri, val name: String, val durationMs: Long, val size: Long, val folder: String)
+private data class LocalAudio(val uri: Uri, val name: String, val durationMs: Long, val size: Long)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -89,9 +94,13 @@ private fun OrbitApp() {
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var showTrackInfo by remember { mutableStateOf(false) }
     var videos by remember { mutableStateOf<List<LocalVideo>>(emptyList()) }
+    var audios by remember { mutableStateOf<List<LocalAudio>>(emptyList()) }
+    var playlists by remember { mutableStateOf(context.getSharedPreferences("orbit_player", Context.MODE_PRIVATE).getStringSet("playlists", emptySet())?.toList()?.sorted() ?: emptyList()) }
+    var showCreatePlaylist by remember { mutableStateOf(false) }
+    var newPlaylistName by remember { mutableStateOf("") }
     var hasPermission by remember { mutableStateOf(hasVideoPermission(context)) }
     var searchQuery by remember { mutableStateOf("") }
-    var currentTab by remember { mutableStateOf("Library") }
+    var currentTab by remember { mutableStateOf("Video") }
     var showPinDialog by remember { mutableStateOf(false) }
     var pinEntry by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf("") }
@@ -102,7 +111,7 @@ private fun OrbitApp() {
 
     fun refreshVideos() {
         hasPermission = hasVideoPermission(context)
-        if (hasPermission) videos = queryVideos(context)
+        if (hasPermission) { videos = queryVideos(context); audios = queryAudios(context) }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -199,19 +208,12 @@ private fun OrbitApp() {
             },
             bottomBar = {
                 if (mediaUri == null) {
-                    NavigationBar(containerColor = OrbitPanel, contentColor = OrbitText) {
-                        NavigationBarItem(
-                            selected = currentTab == "Library",
-                            onClick = { currentTab = "Library"; privacyUnlocked = false },
-                            icon = { Icon(Icons.Default.VideoLibrary, contentDescription = null) },
-                            label = { Text("Library") }
-                        )
-                        NavigationBarItem(
-                            selected = currentTab == "Me",
-                            onClick = { currentTab = "Me"; privacyUnlocked = false },
-                            icon = { Icon(Icons.Default.Person, contentDescription = null) },
-                            label = { Text("Me") }
-                        )
+                    NavigationBar(containerColor = OrbitPanel, contentColor = OrbitText, windowInsets = WindowInsets(0, 0, 0, 0)) {
+                        NavigationBarItem(selected = currentTab == "Video", onClick = { currentTab = "Video"; privacyUnlocked = false }, icon = { Icon(Icons.Default.VideoLibrary, contentDescription = null) }, label = { Text("Video", maxLines = 1) })
+                        NavigationBarItem(selected = currentTab == "Music", onClick = { currentTab = "Music"; privacyUnlocked = false }, icon = { Icon(Icons.Default.MusicNote, contentDescription = null) }, label = { Text("Music", maxLines = 1) })
+                        NavigationBarItem(selected = currentTab == "Folder", onClick = { currentTab = "Folder"; privacyUnlocked = false }, icon = { Icon(Icons.Default.Folder, contentDescription = null) }, label = { Text("Folder", maxLines = 1) })
+                        NavigationBarItem(selected = currentTab == "Playlist", onClick = { currentTab = "Playlist"; privacyUnlocked = false }, icon = { Icon(Icons.Default.QueueMusic, contentDescription = null) }, label = { Text("Playlist", maxLines = 1) })
+                        NavigationBarItem(selected = currentTab == "Me", onClick = { currentTab = "Me"; privacyUnlocked = false }, icon = { Icon(Icons.Default.Person, contentDescription = null) }, label = { Text("Me", maxLines = 1) })
                     }
                 }
             }
@@ -220,13 +222,80 @@ private fun OrbitApp() {
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp, vertical = 8.dp).animateContentSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (mediaUri == null && currentTab == "Library") {
+                if (mediaUri == null && (currentTab == "Video" || currentTab == "Music")) {
                     OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.fillMaxWidth().animateContentSize(), placeholder = { Text("Search videos", color = OrbitMuted) }, leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = OrbitMuted) }, singleLine = true, shape = RoundedCornerShape(10.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = OrbitText, unfocusedTextColor = OrbitText, focusedBorderColor = OrbitAccent, unfocusedBorderColor = OrbitLine, cursorColor = OrbitAccent))
                 }
-                if (currentTab == "Library") Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                if (currentTab == "Video" || currentTab == "Music") Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(if (mediaUri == null) "YOUR LIBRARY" else "NOW / PLAYING", color = OrbitMuted, fontSize = 10.sp, letterSpacing = 2.sp)
                     Spacer(Modifier.weight(1f))
                     Text("●  LOCAL MEDIA", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 1.sp)
+                }
+
+                if (currentTab == "Music" && mediaUri == null) {
+                    Column(Modifier.fillMaxWidth().weight(1f).background(Color(0xFF050505), RoundedCornerShape(3.dp)).padding(14.dp)) {
+                        Text("MUSIC ON DEVICE", color = OrbitText, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                        Text("${audios.size} audio files found", color = OrbitMuted, fontSize = 11.sp)
+                        Spacer(Modifier.height(8.dp))
+                        LazyColumn(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            items(audios.filter { it.name.contains(searchQuery, ignoreCase = true) }, key = { it.uri.toString() }) { audio ->
+                                Row(Modifier.fillMaxWidth().background(OrbitPanel, RoundedCornerShape(8.dp)).clickable { mediaUri = audio.uri; selectedName = audio.name }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.MusicNote, contentDescription = null, tint = OrbitAccent, modifier = Modifier.size(32.dp))
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(audio.name, color = OrbitText, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        Text("${formatDuration(audio.durationMs)} • ${formatSize(audio.size)}", color = OrbitMuted, fontSize = 10.sp)
+                                    }
+                                    Text("PLAY", color = OrbitAccent, fontSize = 10.sp)
+                                }
+                            }
+                        }
+                    }
+                } else if (currentTab == "Folder" && mediaUri == null) {
+                    val folders = videos.filter { it.uri.toString() !in hiddenUris }.groupBy { it.folder.ifBlank { "Other / Unknown" } }.toSortedMap()
+                    Column(Modifier.fillMaxWidth().weight(1f).background(Color(0xFF050505), RoundedCornerShape(3.dp)).padding(14.dp)) {
+                        Text("VIDEO FOLDERS", color = OrbitText, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                        Text("${folders.size} folders found", color = OrbitMuted, fontSize = 11.sp)
+                        Spacer(Modifier.height(8.dp))
+                        LazyColumn(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            items(folders.keys.toList(), key = { it }) { folder ->
+                                Column(Modifier.fillMaxWidth().background(OrbitPanel, RoundedCornerShape(8.dp)).padding(14.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Folder, contentDescription = null, tint = OrbitAccent)
+                                        Spacer(Modifier.width(10.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text(folder.trimEnd('/').substringAfterLast('/'), color = OrbitText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                            Text("${folders[folder]?.size ?: 0} videos • ${folder}", color = OrbitMuted, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        }
+                                    }
+                                    (folders[folder] ?: emptyList()).take(3).forEach { video ->
+                                        TextButton(onClick = { mediaUri = video.uri; selectedName = video.name }) { Text("▶  ${video.name}", color = OrbitText, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else if (currentTab == "Playlist" && mediaUri == null) {
+                    Column(Modifier.fillMaxWidth().weight(1f).background(OrbitPanel, RoundedCornerShape(12.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("YOUR PLAYLISTS", color = OrbitText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Create named collections for your video library.", color = OrbitMuted, fontSize = 12.sp)
+                        Button(onClick = { newPlaylistName = ""; showCreatePlaylist = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = OrbitAccent)) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("CREATE PLAYLIST")
+                        }
+                        if (playlists.isEmpty()) Text("No playlists yet", color = OrbitMuted, fontSize = 12.sp)
+                        playlists.forEach { name ->
+                            Row(Modifier.fillMaxWidth().background(OrbitBlack, RoundedCornerShape(8.dp)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.QueueMusic, contentDescription = null, tint = OrbitAccent)
+                                Spacer(Modifier.width(10.dp))
+                                Text(name, color = OrbitText, modifier = Modifier.weight(1f))
+                                TextButton(onClick = {
+                                    playlists = playlists.filterNot { it == name }
+                                    context.getSharedPreferences("orbit_player", Context.MODE_PRIVATE).edit().putStringSet("playlists", playlists.toSet()).apply()
+                                }) { Text("REMOVE", color = OrbitAccent) }
+                            }
+                        }
+                    }
                 }
 
                 if (currentTab == "Me" && mediaUri == null) {
@@ -286,7 +355,7 @@ private fun OrbitApp() {
                             modifier = Modifier.fillMaxSize()
                         )
                     }
-                } else if (currentTab == "Library") {
+                } else if (currentTab == "Video") {
                     Column(
                         Modifier.fillMaxWidth().weight(1f).background(Color(0xFF050505), RoundedCornerShape(3.dp)).padding(14.dp)
                     ) {
@@ -375,13 +444,31 @@ private fun OrbitApp() {
 
 
 
-                if (mediaUri == null && currentTab == "Library") Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (mediaUri == null && currentTab == "Video") Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("● ● ●", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 2.sp)
                     Spacer(Modifier.weight(1f))
                     Text("DESIGNED FOR YOUR MEDIA", color = OrbitMuted, fontSize = 9.sp, letterSpacing = 1.5.sp)
                 }
             }
         }
+    }
+    if (showCreatePlaylist) {
+        AlertDialog(
+            onDismissRequest = { showCreatePlaylist = false },
+            title = { Text("Create playlist") },
+            text = { OutlinedTextField(value = newPlaylistName, onValueChange = { newPlaylistName = it.take(48) }, label = { Text("Playlist name") }, singleLine = true) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val name = newPlaylistName.trim()
+                    if (name.isNotEmpty() && name !in playlists) {
+                        playlists = (playlists + name).sorted()
+                        context.getSharedPreferences("orbit_player", Context.MODE_PRIVATE).edit().putStringSet("playlists", playlists.toSet()).apply()
+                    }
+                    showCreatePlaylist = false
+                }) { Text("CREATE") }
+            },
+            dismissButton = { TextButton(onClick = { showCreatePlaylist = false }) { Text("CANCEL") } }
+        )
     }
     if (showPinDialog) {
         val privacyPrefs = context.getSharedPreferences("orbit_privacy", Context.MODE_PRIVATE)
@@ -457,7 +544,8 @@ private fun queryVideos(context: Context): List<LocalVideo> {
         MediaStore.Video.Media._ID,
         MediaStore.Video.Media.DISPLAY_NAME,
         MediaStore.Video.Media.DURATION,
-        MediaStore.Video.Media.SIZE
+        MediaStore.Video.Media.SIZE,
+        MediaStore.Video.Media.RELATIVE_PATH
     )
     val result = mutableListOf<LocalVideo>()
     val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
@@ -471,6 +559,34 @@ private fun queryVideos(context: Context): List<LocalVideo> {
             result += LocalVideo(
                 ContentUris.withAppendedId(collection, id),
                 cursor.getString(nameCol) ?: "Video",
+                cursor.getLong(durationCol),
+                cursor.getLong(sizeCol),
+                if (Build.VERSION.SDK_INT >= 29) cursor.getString(cursor.getColumnIndex(MediaStore.Video.Media.RELATIVE_PATH)) ?: "" else ""
+            )
+        }
+    }
+    return result
+}
+
+
+private fun queryAudios(context: Context): List<LocalAudio> {
+    val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+    val projection = arrayOf(
+        MediaStore.Audio.Media._ID,
+        MediaStore.Audio.Media.DISPLAY_NAME,
+        MediaStore.Audio.Media.DURATION,
+        MediaStore.Audio.Media.SIZE
+    )
+    val result = mutableListOf<LocalAudio>()
+    context.contentResolver.query(collection, projection, "${MediaStore.Audio.Media.IS_MUSIC} != 0", null, "${MediaStore.Audio.Media.DATE_ADDED} DESC")?.use { cursor ->
+        val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+        val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+        val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+        val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
+        while (cursor.moveToNext()) {
+            result += LocalAudio(
+                ContentUris.withAppendedId(collection, cursor.getLong(idCol)),
+                cursor.getString(nameCol) ?: "Audio",
                 cursor.getLong(durationCol),
                 cursor.getLong(sizeCol)
             )
