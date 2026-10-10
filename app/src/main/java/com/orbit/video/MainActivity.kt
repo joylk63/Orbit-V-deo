@@ -36,6 +36,8 @@ import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
@@ -119,6 +121,9 @@ private fun OrbitApp() {
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var showTrackInfo by remember { mutableStateOf(false) }
     var videos by remember { mutableStateOf<List<LocalVideo>>(emptyList()) }
+    // Keep library scroll positions outside AnimatedContent so they survive opening/closing the player.
+    val videoGridState = rememberLazyGridState()
+    val videoListState = rememberLazyListState()
     var audios by remember { mutableStateOf<List<LocalAudio>>(emptyList()) }
     var hasPermission by remember { mutableStateOf(hasVideoPermission(context)) }
     var searchQuery by remember { mutableStateOf("") }
@@ -656,6 +661,7 @@ private fun OrbitApp() {
                                 val filteredVideos = videos.filter { it.uri.toString() !in hiddenUris && it.name.contains(searchQuery, ignoreCase = true) }
                                 if (gridView) {
                                     LazyVerticalGrid(
+                                        state = videoGridState,
                                         columns = GridCells.Fixed(2),
                                         modifier = Modifier.fillMaxWidth().weight(1f),
                                         verticalArrangement = Arrangement.spacedBy(9.dp),
@@ -702,6 +708,7 @@ private fun OrbitApp() {
                                     }
                                 } else {
                                     LazyColumn(
+                                        state = videoListState,
                                         modifier = Modifier.fillMaxWidth().weight(1f),
                                         verticalArrangement = Arrangement.spacedBy(7.dp)
                                     ) {
