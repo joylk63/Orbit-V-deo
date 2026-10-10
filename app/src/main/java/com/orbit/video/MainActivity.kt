@@ -29,6 +29,8 @@ import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -43,6 +45,9 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.ViewList
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.Dispatchers
@@ -96,6 +101,7 @@ private fun OrbitApp() {
     var audios by remember { mutableStateOf<List<LocalAudio>>(emptyList()) }
     var hasPermission by remember { mutableStateOf(hasVideoPermission(context)) }
     var searchQuery by remember { mutableStateOf("") }
+    var gridView by remember { mutableStateOf(prefs.getBoolean("video_grid_view", false)) }
     var currentTab by remember { mutableStateOf("Video") }
     var showPinDialog by remember { mutableStateOf(false) }
     var pinEntry by remember { mutableStateOf("") }
@@ -339,7 +345,19 @@ private fun OrbitApp() {
                                 Text("VIDEOS ON DEVICE", color = OrbitText, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                                 Text(if (hasPermission) "${videos.size} videos found" else "Allow access to scan your videos", color = OrbitMuted, fontSize = 11.sp)
                             }
-                            if (hasPermission) TextButton(onClick = { refreshVideos() }) { Text("REFRESH", color = OrbitAccent, fontSize = 10.sp) }
+                            if (hasPermission) {
+                                IconButton(onClick = {
+                                    gridView = !gridView
+                                    prefs.edit().putBoolean("video_grid_view", gridView).apply()
+                                }) {
+                                    Icon(
+                                        imageVector = if (gridView) Icons.Default.ViewList else Icons.Default.GridView,
+                                        contentDescription = if (gridView) "Switch to list view" else "Switch to grid view",
+                                        tint = OrbitAccent
+                                    )
+                                }
+                                TextButton(onClick = { refreshVideos() }) { Text("REFRESH", color = OrbitAccent, fontSize = 10.sp) }
+                            }
                         }
                         Spacer(Modifier.height(8.dp))
                         when {
@@ -371,44 +389,86 @@ private fun OrbitApp() {
                                 }
                             }
                             else -> {
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxWidth().weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(7.dp)
-                                ) {
-                                    items(videos.filter { it.uri.toString() !in hiddenUris && it.name.contains(searchQuery, ignoreCase = true) }, key = { it.uri.toString() }) { video ->
-                                        val thumbnail by produceState<Bitmap?>(initialValue = null, video.uri) {
-                                            value = withContext(Dispatchers.IO) {
-                                                if (Build.VERSION.SDK_INT >= 29) runCatching {
-                                                    context.contentResolver.loadThumbnail(video.uri, Size(160, 100), null)
-                                                }.getOrNull() else null
+                                val filteredVideos = videos.filter { it.uri.toString() !in hiddenUris && it.name.contains(searchQuery, ignoreCase = true) }
+                                if (gridView) {
+                                    LazyVerticalGrid(
+                                        columns = GridCells.Adaptive(minSize = 142.dp),
+                                        modifier = Modifier.fillMaxWidth().weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(9.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(9.dp)
+                                    ) {
+                                        items(filteredVideos.size, key = { filteredVideos[it].uri.toString() }) { index ->
+                                            val video = filteredVideos[index]
+                                            val thumbnail by produceState<Bitmap?>(initialValue = null, video.uri) {
+                                                value = withContext(Dispatchers.IO) {
+                                                    if (Build.VERSION.SDK_INT >= 29) runCatching {
+                                                        context.contentResolver.loadThumbnail(video.uri, Size(320, 200), null)
+                                                    }.getOrNull() else null
+                                                }
                                             }
-                                        }
-                                        Row(
-                                            Modifier.fillMaxWidth().background(OrbitPanel, RoundedCornerShape(8.dp)).animateContentSize()
-                                                .combinedClickable(onClick = { mediaUri = video.uri; selectedName = video.name }, onLongClick = { pendingHide = video; pinEntry = ""; pinError = ""; showPinDialog = true })
-                                                .padding(horizontal = 12.dp, vertical = 13.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Box(Modifier.size(width = 88.dp, height = 58.dp).background(Color(0xFF242424), RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
-                                                if (thumbnail != null) {
-                                                    Image(
+                                            Column(
+                                                Modifier.fillMaxWidth().background(OrbitPanel, RoundedCornerShape(8.dp)).animateContentSize()
+                                                    .combinedClickable(onClick = { mediaUri = video.uri; selectedName = video.name }, onLongClick = { pendingHide = video; pinEntry = ""; pinError = ""; showPinDialog = true })
+                                                    .padding(8.dp)
+                                            ) {
+                                                Box(Modifier.fillMaxWidth().aspectRatio(1.55f).background(Color(0xFF242424), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
+                                                    if (thumbnail != null) Image(
                                                         bitmap = thumbnail!!.asImageBitmap(),
                                                         contentDescription = "Video thumbnail",
                                                         modifier = Modifier.fillMaxSize(),
                                                         contentScale = androidx.compose.ui.layout.ContentScale.Crop
                                                     )
-                                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
-                                                } else {
-                                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = OrbitText)
+                                                    Box(Modifier.align(Alignment.Center).background(Color(0x77000000), RoundedCornerShape(50)).padding(4.dp)) {
+                                                        Icon(Icons.Default.PlayArrow, contentDescription = "Play video", tint = Color.White)
+                                                    }
+                                                }
+                                                Spacer(Modifier.height(8.dp))
+                                                Text(video.name, color = OrbitText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis, minLines = 2)
+                                                Spacer(Modifier.height(4.dp))
+                                                Text("${formatDuration(video.durationMs)} • ${formatSize(video.size)}", color = OrbitMuted, fontSize = 9.sp, maxLines = 1)
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxWidth().weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(7.dp)
+                                    ) {
+                                        items(filteredVideos, key = { it.uri.toString() }) { video ->
+                                            val thumbnail by produceState<Bitmap?>(initialValue = null, video.uri) {
+                                                value = withContext(Dispatchers.IO) {
+                                                    if (Build.VERSION.SDK_INT >= 29) runCatching {
+                                                        context.contentResolver.loadThumbnail(video.uri, Size(160, 100), null)
+                                                    }.getOrNull() else null
                                                 }
                                             }
-                                            Spacer(Modifier.width(12.dp))
-                                            Column(Modifier.weight(1f)) {
-                                                Text(video.name, color = OrbitText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                                Spacer(Modifier.height(4.dp))
-                                                Text("${formatDuration(video.durationMs)}  •  ${formatSize(video.size)}", color = OrbitMuted, fontSize = 10.sp)
+                                            Row(
+                                                Modifier.fillMaxWidth().background(OrbitPanel, RoundedCornerShape(8.dp)).animateContentSize()
+                                                    .combinedClickable(onClick = { mediaUri = video.uri; selectedName = video.name }, onLongClick = { pendingHide = video; pinEntry = ""; pinError = ""; showPinDialog = true })
+                                                    .padding(horizontal = 12.dp, vertical = 13.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Box(Modifier.size(width = 88.dp, height = 58.dp).background(Color(0xFF242424), RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
+                                                    if (thumbnail != null) {
+                                                        Image(
+                                                            bitmap = thumbnail!!.asImageBitmap(),
+                                                            contentDescription = "Video thumbnail",
+                                                            modifier = Modifier.fillMaxSize(),
+                                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                                        )
+                                                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
+                                                    } else {
+                                                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = OrbitText)
+                                                    }
+                                                }
+                                                Spacer(Modifier.width(12.dp))
+                                                Column(Modifier.weight(1f)) {
+                                                    Text(video.name, color = OrbitText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                                    Spacer(Modifier.height(4.dp))
+                                                    Text("${formatDuration(video.durationMs)}  •  ${formatSize(video.size)}", color = OrbitMuted, fontSize = 10.sp)
+                                                }
+                                                Text("PLAY", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 1.sp)
                                             }
-                                            Text("PLAY", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 1.sp)
                                         }
                                     }
                                 }
