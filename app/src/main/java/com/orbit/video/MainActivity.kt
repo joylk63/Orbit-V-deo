@@ -106,6 +106,35 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
+@Composable
+private fun OrbitDotMatrixTitle(color: Color, modifier: Modifier = Modifier) {
+    val letters = listOf(
+        listOf("01110","10001","10001","10001","10001","10001","01110"),
+        listOf("11110","10001","10001","11110","10100","10010","10001"),
+        listOf("11110","10001","10001","11110","10001","10001","11110"),
+        listOf("11111","00100","00100","00100","00100","00100","11111"),
+        listOf("11111","00100","00100","00100","00100","00100","00100")
+    )
+    Canvas(modifier = modifier.width(112.dp).height(27.dp)) {
+        val cell = size.height / 7f
+        val radius = cell * 0.19f
+        val letterGap = cell * 1.05f
+        letters.forEachIndexed { letterIndex, rows ->
+            rows.forEachIndexed { rowIndex, row ->
+                row.forEachIndexed { colIndex, bit ->
+                    if (bit == '1') {
+                        drawCircle(color = color, radius = radius, center = Offset(
+                            x = letterIndex * (5 * cell + letterGap) + colIndex * cell + cell / 2f,
+                            y = rowIndex * cell + cell / 2f
+                        ))
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun OrbitApp() {
@@ -127,6 +156,7 @@ private fun OrbitApp() {
     var audios by remember { mutableStateOf<List<LocalAudio>>(emptyList()) }
     var hasPermission by remember { mutableStateOf(hasVideoPermission(context)) }
     var searchQuery by remember { mutableStateOf("") }
+    var showSearchField by remember { mutableStateOf(false) }
     val prefs = remember { context.getSharedPreferences("orbit_player", Context.MODE_PRIVATE) }
     var themeName by remember { mutableStateOf(prefs.getString("theme_name", "Orbit Red") ?: "Orbit Red") }
     val palette = when (themeName) {
@@ -290,7 +320,7 @@ private fun OrbitApp() {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text("ORBIT", color = OrbitText, fontWeight = FontWeight.Black, letterSpacing = 4.sp, fontSize = 24.sp)
+                            OrbitDotMatrixTitle(color = OrbitText)
                             Text("V!DEO PLAYER  /  002", fontSize = 10.sp, color = OrbitMuted, letterSpacing = 2.sp)
                         }
                         Image(
@@ -298,6 +328,9 @@ private fun OrbitApp() {
                             contentDescription = "Orbit V!deo logo",
                             modifier = Modifier.size(50.dp)
                         )
+                        IconButton(onClick = { showSearchField = !showSearchField; if (!showSearchField) searchQuery = "" }) {
+                            Icon(Icons.Default.Search, contentDescription = "Search videos", tint = OrbitText)
+                        }
                         IconButton(onClick = { if (!hasPermission) requestMediaPermission() else refreshVideos() }) {
                             Icon(Icons.Default.VideoLibrary, contentDescription = "Refresh video library", tint = OrbitText)
                         }
@@ -339,20 +372,14 @@ private fun OrbitApp() {
                                         animationSpec = tween(220),
                                         label = "nav-icon-tint-\${item.first}"
                                     )
-                                    val labelTint by animateColorAsState(
-                                        targetValue = if (selected) OrbitText else OrbitMuted,
-                                        animationSpec = tween(220),
-                                        label = "nav-label-tint-\${item.first}"
-                                    )
                                     Column(
-                                        Modifier.weight(1f).height(54.dp)
+                                        Modifier.weight(1f).height(50.dp)
                                             .clip(RoundedCornerShape(50))
                                             .clickable { currentTab = item.first; privacyUnlocked = false },
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.Center
                                     ) {
-                                        Icon(item.second, contentDescription = item.third, tint = iconTint, modifier = Modifier.size(21.dp))
-                                        Text(item.third, color = labelTint, fontSize = 10.sp, maxLines = 1)
+                                        Icon(item.second, contentDescription = item.third, tint = iconTint, modifier = Modifier.size(25.dp))
                                     }
                                 }
                             }
@@ -393,7 +420,7 @@ private fun OrbitApp() {
                     .animateContentSize(animationSpec = tween(150)),
                 verticalArrangement = Arrangement.spacedBy(if (mediaUri != null) 0.dp else 12.dp)
             ) {
-                if (mediaUri == null && (tab == "Video" || tab == "Music")) {
+                if (mediaUri == null && showSearchField && (tab == "Video" || tab == "Music")) {
                     OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.fillMaxWidth().animateContentSize(), placeholder = { Text("Search videos", color = OrbitMuted) }, leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = OrbitMuted) }, singleLine = true, shape = RoundedCornerShape(10.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = OrbitText, unfocusedTextColor = OrbitText, focusedBorderColor = OrbitAccent, unfocusedBorderColor = OrbitLine, cursorColor = OrbitAccent))
                 }
                 if (mediaUri == null && (tab == "Video" || tab == "Music")) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -681,7 +708,7 @@ private fun OrbitApp() {
                                                     .combinedClickable(onClick = { mediaUri = video.uri; selectedName = video.name }, onLongClick = { pendingHide = video; pinEntry = ""; pinError = ""; showPinDialog = true })
                                                     .padding(8.dp)
                                             ) {
-                                                Box(Modifier.fillMaxWidth().aspectRatio(0.96f).background(Color(0xFF242424), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
+                                                Box(Modifier.fillMaxWidth().aspectRatio(0.82f).background(Color(0xFF242424), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
                                                     if (thumbnail != null) Image(
                                                         bitmap = thumbnail!!.asImageBitmap(),
                                                         contentDescription = "Video thumbnail",
@@ -764,11 +791,6 @@ private fun OrbitApp() {
 
 
 
-                if (mediaUri == null && tab == "Video") Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("● ● ●", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 2.sp)
-                    Spacer(Modifier.weight(1f))
-                    Text("DESIGNED FOR YOUR MEDIA", color = OrbitMuted, fontSize = 9.sp, letterSpacing = 1.5.sp)
-                }
             }
             }
         }
