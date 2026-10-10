@@ -554,7 +554,7 @@ private fun OrbitApp() {
                                 val filteredVideos = videos.filter { it.uri.toString() !in hiddenUris && it.name.contains(searchQuery, ignoreCase = true) }
                                 if (gridView) {
                                     LazyVerticalGrid(
-                                        columns = GridCells.Adaptive(minSize = 160.dp),
+                                        columns = GridCells.Fixed(2),
                                         modifier = Modifier.fillMaxWidth().weight(1f),
                                         verticalArrangement = Arrangement.spacedBy(9.dp),
                                         horizontalArrangement = Arrangement.spacedBy(9.dp)
@@ -564,7 +564,7 @@ private fun OrbitApp() {
                                             val thumbnail by produceState<Bitmap?>(initialValue = null, video.uri) {
                                                 value = withContext(Dispatchers.IO) {
                                                     if (Build.VERSION.SDK_INT >= 29) runCatching {
-                                                        context.contentResolver.loadThumbnail(video.uri, Size(320, 200), null)
+                                                        context.contentResolver.loadThumbnail(video.uri, Size(240, 160), null)
                                                     }.getOrNull() else null
                                                 }
                                             }
@@ -573,7 +573,7 @@ private fun OrbitApp() {
                                                     .combinedClickable(onClick = { mediaUri = video.uri; selectedName = video.name }, onLongClick = { pendingHide = video; pinEntry = ""; pinError = ""; showPinDialog = true })
                                                     .padding(8.dp)
                                             ) {
-                                                Box(Modifier.fillMaxWidth().aspectRatio(1.28f).background(Color(0xFF242424), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
+                                                Box(Modifier.fillMaxWidth().aspectRatio(1.24f).background(Color(0xFF242424), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
                                                     if (thumbnail != null) Image(
                                                         bitmap = thumbnail!!.asImageBitmap(),
                                                         contentDescription = "Video thumbnail",
