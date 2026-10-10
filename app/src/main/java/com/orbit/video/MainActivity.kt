@@ -5,6 +5,8 @@ import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
+import android.view.View
 import android.graphics.Bitmap
 import android.util.Size
 import android.net.Uri
@@ -54,6 +56,7 @@ import androidx.compose.runtime.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -95,6 +98,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun OrbitApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     var mediaUri by remember { mutableStateOf<Uri?>(null) }
     var selectedName by remember { mutableStateOf<String?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
@@ -199,22 +204,24 @@ private fun OrbitApp() {
         Scaffold(
             containerColor = OrbitBlack,
             topBar = {
-                Row(
-                    Modifier.fillMaxWidth().background(OrbitBlack)
-                        .padding(start = 22.dp, end = 12.dp, top = 20.dp, bottom = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("ORBIT", color = OrbitText, fontWeight = FontWeight.Black, letterSpacing = 4.sp, fontSize = 27.sp)
-                        Text("V!DEO PLAYER  /  002", fontSize = 10.sp, color = OrbitMuted, letterSpacing = 2.sp)
-                    }
-                    Image(
-                        painter = painterResource(id = R.drawable.orbit_logo),
-                        contentDescription = "Orbit V!deo logo",
-                        modifier = Modifier.size(42.dp)
-                    )
-                    IconButton(onClick = { if (!hasPermission) requestMediaPermission() else refreshVideos() }) {
-                        Icon(Icons.Default.VideoLibrary, contentDescription = "Refresh video library", tint = OrbitText)
+                if (mediaUri == null) {
+                    Row(
+                        Modifier.fillMaxWidth().background(OrbitBlack)
+                            .padding(start = 22.dp, end = 12.dp, top = 14.dp, bottom = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("ORBIT", color = OrbitText, fontWeight = FontWeight.Black, letterSpacing = 4.sp, fontSize = 24.sp)
+                            Text("V!DEO PLAYER  /  002", fontSize = 10.sp, color = OrbitMuted, letterSpacing = 2.sp)
+                        }
+                        Image(
+                            painter = painterResource(id = R.drawable.orbit_logo),
+                            contentDescription = "Orbit V!deo logo",
+                            modifier = Modifier.size(42.dp)
+                        )
+                        IconButton(onClick = { if (!hasPermission) requestMediaPermission() else refreshVideos() }) {
+                            Icon(Icons.Default.VideoLibrary, contentDescription = "Refresh video library", tint = OrbitText)
+                        }
                     }
                 }
             },
@@ -230,8 +237,10 @@ private fun OrbitApp() {
             }
         ) { padding ->
             Column(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp, vertical = 8.dp).animateContentSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.fillMaxSize().padding(padding)
+                    .padding(horizontal = if (mediaUri != null) 0.dp else 18.dp, vertical = if (mediaUri != null) 0.dp else 8.dp)
+                    .animateContentSize(),
+                verticalArrangement = Arrangement.spacedBy(if (mediaUri != null) 0.dp else 12.dp)
             ) {
                 if (mediaUri == null && (currentTab == "Video" || currentTab == "Music")) {
                     OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.fillMaxWidth().animateContentSize(), placeholder = { Text("Search videos", color = OrbitMuted) }, leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = OrbitMuted) }, singleLine = true, shape = RoundedCornerShape(10.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = OrbitText, unfocusedTextColor = OrbitText, focusedBorderColor = OrbitAccent, unfocusedBorderColor = OrbitLine, cursorColor = OrbitAccent))
@@ -314,40 +323,40 @@ private fun OrbitApp() {
                         }
                     }
                 } else if (mediaUri != null) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = {
-                            player.pause()
-                            mediaUri?.let { prefs.edit().putLong("position:" + it.toString(), player.currentPosition.coerceAtLeast(0L)).apply() }
-                            mediaUri = null
-                            selectedName = null
-                            controlsLocked = false
-                            if (landscapeMode) {
+                    if (!isLandscape) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = {
+                                player.pause()
+                                mediaUri?.let { prefs.edit().putLong("position:" + it.toString(), player.currentPosition.coerceAtLeast(0L)).apply() }
+                                mediaUri = null
+                                selectedName = null
+                                controlsLocked = false
                                 (context as? ComponentActivity)?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                                 landscapeMode = false
+                            }) { Text("‹", color = OrbitText, fontSize = 24.sp) }
+                            Text(selectedName ?: "NOW PLAYING", color = OrbitMuted, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                            TextButton(onClick = { runCatching { TrackSelectionDialogBuilder(context, "HDR / Audio tracks", player, C.TRACK_TYPE_AUDIO).build().show() } }) { Text("♫", color = OrbitText, fontSize = 18.sp) }
+                            TextButton(onClick = { runCatching { TrackSelectionDialogBuilder(context, "Subtitles / CC", player, C.TRACK_TYPE_TEXT).build().show() } }) { Text("CC", color = OrbitText, fontSize = 10.sp) }
+                            Box {
+                                TextButton(onClick = { playerMenuExpanded = true }) { Text("⋮", color = OrbitText, fontSize = 22.sp) }
+                                DropdownMenu(expanded = playerMenuExpanded, onDismissRequest = { playerMenuExpanded = false }, containerColor = OrbitPanel) {
+                                    DropdownMenuItem(text = { Text("Playback speed", color = OrbitText) }, onClick = { playerMenuExpanded = false; speedMenuExpanded = true })
+                                    DropdownMenuItem(text = { Text(if (fillVideo) "Fit video" else "Fill screen", color = OrbitText) }, onClick = { fillVideo = !fillVideo; playerMenuExpanded = false })
+                                    DropdownMenuItem(text = { Text(if (isLandscape) "Portrait orientation" else "Landscape orientation", color = OrbitText) }, onClick = {
+                                        landscapeMode = !isLandscape
+                                        (context as? ComponentActivity)?.requestedOrientation = if (!isLandscape) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                        playerMenuExpanded = false
+                                    })
+                                }
                             }
-                        }) { Text("‹ BACK", color = OrbitText, fontSize = 11.sp, letterSpacing = 1.sp) }
-                        Text(selectedName ?: "NOW PLAYING", color = OrbitMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { runCatching { TrackSelectionDialogBuilder(context, "Audio track", player, C.TRACK_TYPE_AUDIO).build().show() } }) { Text("AUDIO", color = OrbitText, fontSize = 10.sp) }
-                        TextButton(onClick = { runCatching { TrackSelectionDialogBuilder(context, "Subtitles", player, C.TRACK_TYPE_TEXT).build().show() } }) { Text("CC", color = OrbitText, fontSize = 10.sp) }
-                        Box {
-                            TextButton(onClick = { playerMenuExpanded = true }) { Text("⋮", color = OrbitText, fontSize = 22.sp) }
-                            DropdownMenu(expanded = playerMenuExpanded, onDismissRequest = { playerMenuExpanded = false }, containerColor = OrbitPanel) {
-                                DropdownMenuItem(text = { Text("Playback speed", color = OrbitText) }, onClick = { playerMenuExpanded = false; speedMenuExpanded = true })
-                                DropdownMenuItem(text = { Text(if (fillVideo) "Fit video" else "Fill screen", color = OrbitText) }, onClick = { fillVideo = !fillVideo; playerMenuExpanded = false })
-                                DropdownMenuItem(text = { Text(if (landscapeMode) "Portrait orientation" else "Landscape orientation", color = OrbitText) }, onClick = {
-                                    landscapeMode = !landscapeMode
-                                    (context as? ComponentActivity)?.requestedOrientation = if (landscapeMode) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                                    playerMenuExpanded = false
-                                })
-                            }
-                        }
-                        DropdownMenu(expanded = speedMenuExpanded, onDismissRequest = { speedMenuExpanded = false }, containerColor = OrbitPanel) {
-                            listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f).forEach { speed ->
-                                DropdownMenuItem(text = { Text("${speed}×", color = if (playbackSpeed == speed) OrbitAccent else OrbitText) }, onClick = { playbackSpeed = speed; player.setPlaybackSpeed(speed); speedMenuExpanded = false })
+                            DropdownMenu(expanded = speedMenuExpanded, onDismissRequest = { speedMenuExpanded = false }, containerColor = OrbitPanel) {
+                                listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f).forEach { speed ->
+                                    DropdownMenuItem(text = { Text("${speed}×", color = if (playbackSpeed == speed) OrbitAccent else OrbitText) }, onClick = { playbackSpeed = speed; player.setPlaybackSpeed(speed); speedMenuExpanded = false })
+                                }
                             }
                         }
                     }
-                    Box(Modifier.fillMaxWidth().weight(1f).background(Color.Black, RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
+                    Box(Modifier.fillMaxWidth().weight(1f).background(Color.Black), contentAlignment = Alignment.Center) {
                         AndroidView(
                             factory = { viewContext -> PlayerView(viewContext).apply {
                                 this.player = player
@@ -361,18 +370,44 @@ private fun OrbitApp() {
                             modifier = Modifier.fillMaxSize()
                         )
                         if (!controlsLocked) {
-                            Row(Modifier.align(Alignment.TopCenter).fillMaxWidth().background(Color(0x66000000)).padding(horizontal = 4.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
-                                TextButton(onClick = { player.volume = if (isMuted) 1f else 0f; isMuted = !isMuted }) { Text(if (isMuted) "UNMUTE" else "MUTE", color = Color.White, fontSize = 9.sp) }
-                                TextButton(onClick = { landscapeMode = !landscapeMode; (context as? ComponentActivity)?.requestedOrientation = if (landscapeMode) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }) { Text("ROTATE ↔", color = Color.White, fontSize = 9.sp) }
-                                TextButton(onClick = { fillVideo = !fillVideo }) { Text(if (fillVideo) "FIT" else "FILL", color = Color.White, fontSize = 9.sp) }
-                                TextButton(onClick = { controlsLocked = true }) { Text("LOCK", color = Color.White, fontSize = 9.sp) }
-                                TextButton(onClick = { runCatching { TrackSelectionDialogBuilder(context, "Subtitles", player, C.TRACK_TYPE_TEXT).build().show() } }) { Text("CC", color = Color.White, fontSize = 9.sp) }
+                            Column(Modifier.align(Alignment.CenterStart).padding(start = 6.dp).background(Color(0x77000000), RoundedCornerShape(10.dp)), horizontalAlignment = Alignment.CenterHorizontally) {
+                                TextButton(onClick = { player.volume = if (isMuted) 1f else 0f; isMuted = !isMuted }) { Text(if (isMuted) "🔇" else "🔊", color = Color.White, fontSize = 20.sp) }
+                                TextButton(onClick = { controlsLocked = true }) { Text("🔒", color = Color.White, fontSize = 20.sp) }
                             }
-                            Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color(0x66000000)).padding(horizontal = 2.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
-                                TextButton(onClick = { player.seekTo((player.currentPosition - 10_000L).coerceAtLeast(0L)) }) { Text("−10s", color = Color.White, fontSize = 10.sp) }
-                                TextButton(onClick = { player.seekTo(player.currentPosition + 10_000L) }) { Text("+10s", color = Color.White, fontSize = 10.sp) }
-                                TextButton(onClick = { speedMenuExpanded = true }) { Text("${playbackSpeed}×", color = OrbitAccent, fontSize = 11.sp) }
-                                TextButton(onClick = { landscapeMode = !landscapeMode; (context as? ComponentActivity)?.requestedOrientation = if (landscapeMode) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }) { Text("ORIENTATION", color = Color.White, fontSize = 8.sp) }
+                            Column(Modifier.align(Alignment.CenterEnd).padding(end = 6.dp).background(Color(0x77000000), RoundedCornerShape(10.dp)), horizontalAlignment = Alignment.CenterHorizontally) {
+                                TextButton(onClick = { fillVideo = !fillVideo }) { Text("✂", color = Color.White, fontSize = 22.sp) }
+                                TextButton(onClick = {
+                                    val nextLandscape = !isLandscape
+                                    landscapeMode = nextLandscape
+                                    (context as? ComponentActivity)?.requestedOrientation = if (nextLandscape) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                }) { Text("▣", color = Color.White, fontSize = 22.sp) }
+                            }
+                            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color(0x99000000)).padding(horizontal = 8.dp, vertical = if (isLandscape) 2.dp else 6.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(formatDuration(player.currentPosition), color = Color.White, fontSize = 10.sp)
+                                    Spacer(Modifier.width(8.dp))
+                                    Slider(
+                                        value = if (player.duration > 0L) player.currentPosition.coerceIn(0L, player.duration).toFloat() / player.duration.toFloat() else 0f,
+                                        onValueChange = { fraction -> if (player.duration > 0L) player.seekTo((fraction * player.duration).toLong()) },
+                                        modifier = Modifier.weight(1f).height(22.dp),
+                                        colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color(0xFF27C786), inactiveTrackColor = OrbitMuted)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(formatDuration(player.duration.coerceAtLeast(0L)), color = Color.White, fontSize = 10.sp)
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
+                                    TextButton(onClick = { if (player.isPlaying) player.pause() else player.play() }) { Text(if (isPlaying) "Ⅱ" else "▶", color = Color.White, fontSize = 22.sp) }
+                                    TextButton(onClick = { player.seekTo((player.currentPosition - 10_000L).coerceAtLeast(0L)) }) { Text("◀|", color = Color.White, fontSize = 16.sp) }
+                                    TextButton(onClick = { player.seekTo(player.currentPosition + 10_000L) }) { Text("|▶", color = Color.White, fontSize = 16.sp) }
+                                    TextButton(onClick = { speedMenuExpanded = true }) { Text("Speed ${playbackSpeed}×", color = OrbitText, fontSize = 12.sp) }
+                                    TextButton(onClick = { runCatching { TrackSelectionDialogBuilder(context, "Audio track", player, C.TRACK_TYPE_AUDIO).build().show() } }) { Text("♫", color = Color.White, fontSize = 20.sp) }
+                                    TextButton(onClick = { runCatching { TrackSelectionDialogBuilder(context, "Subtitles", player, C.TRACK_TYPE_TEXT).build().show() } }) { Text("CC", color = Color.White, fontSize = 12.sp) }
+                                    TextButton(onClick = {
+                                        val nextLandscape = !isLandscape
+                                        landscapeMode = nextLandscape
+                                        (context as? ComponentActivity)?.requestedOrientation = if (nextLandscape) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                    }) { Text("⛶", color = Color.White, fontSize = 20.sp) }
+                                }
                             }
                         } else {
                             Button(onClick = { controlsLocked = false }, modifier = Modifier.align(Alignment.Center), colors = ButtonDefaults.buttonColors(containerColor = Color(0xAA202020))) { Text("🔒 UNLOCK", color = Color.White) }
@@ -490,7 +525,7 @@ private fun OrbitApp() {
                                                     .padding(horizontal = 12.dp, vertical = 13.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Box(Modifier.size(width = 88.dp, height = 58.dp).background(Color(0xFF242424), RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
+                                                Box(Modifier.size(width = 112.dp, height = 74.dp).background(Color(0xFF242424), RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
                                                     if (thumbnail != null) {
                                                         Image(
                                                             bitmap = thumbnail!!.asImageBitmap(),
