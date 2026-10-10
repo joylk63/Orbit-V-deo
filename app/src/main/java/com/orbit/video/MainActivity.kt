@@ -116,7 +116,7 @@ private fun OrbitDotMatrixTitle(color: Color, modifier: Modifier = Modifier) {
         listOf("11111","00100","00100","00100","00100","00100","11111"),
         listOf("11111","00100","00100","00100","00100","00100","00100")
     )
-    Canvas(modifier = modifier.width(112.dp).height(27.dp)) {
+    Canvas(modifier = modifier.width(126.dp).height(27.dp)) {
         val cell = size.height / 7f
         val radius = cell * 0.19f
         val letterGap = cell * 1.05f
