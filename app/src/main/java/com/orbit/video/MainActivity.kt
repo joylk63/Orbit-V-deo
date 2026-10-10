@@ -378,7 +378,7 @@ private fun OrbitApp() {
                             Button(onClick = { controlsLocked = false }, modifier = Modifier.align(Alignment.Center), colors = ButtonDefaults.buttonColors(containerColor = Color(0xAA202020))) { Text("🔒 UNLOCK", color = Color.White) }
                         }
                     }
-                }                } else if (currentTab == "Video") {
+                } else if (currentTab == "Video") {
                     Column(
                         Modifier.fillMaxWidth().weight(1f).background(Color(0xFF050505), RoundedCornerShape(3.dp)).padding(14.dp)
                     ) {
