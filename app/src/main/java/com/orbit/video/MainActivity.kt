@@ -27,10 +27,10 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 
-private val OrbitBlack = Color(0xFF090B0D)
-private val OrbitPanel = Color(0xFF171A1D)
-private val OrbitGreen = Color(0xFFB8FF3B)
-private val OrbitText = Color(0xFFF2F4F5)
+private val OrbitBlack = Color(0xFF080808)
+private val OrbitPanel = Color(0xFF141414)
+private val OrbitGreen = Color(0xFFE53935)
+private val OrbitText = Color(0xFFF4F4F0)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,8 +82,8 @@ private fun OrbitApp() {
                 TopAppBar(
                     title = {
                         Column {
-                            Text("ORBIT V!DEO", fontWeight = FontWeight.Black, letterSpacing = 2.sp)
-                            Text("LOCAL MEDIA PLAYER", fontSize = 10.sp, color = OrbitGreen, letterSpacing = 2.sp)
+                            Text("ORBIT", fontWeight = FontWeight.Black, letterSpacing = 4.sp, fontSize = 27.sp)
+                            Text("V!DEO PLAYER  /  001", fontSize = 10.sp, color = Color(0xFF9B9B96), letterSpacing = 2.sp)
                         }
                     },
                     actions = {
@@ -100,7 +100,7 @@ private fun OrbitApp() {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Box(
-                    modifier = Modifier.fillMaxWidth().weight(1f).background(Color.Black, RoundedCornerShape(20.dp)),
+                    modifier = Modifier.fillMaxWidth().weight(1f).background(Color.Black, RoundedCornerShape(4.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     if (mediaUri != null) {
@@ -117,29 +117,29 @@ private fun OrbitApp() {
                         )
                     } else {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("◉", color = OrbitGreen, fontSize = 64.sp, fontWeight = FontWeight.Light)
+                            Text("⠿", color = OrbitText, fontSize = 64.sp, fontWeight = FontWeight.Light)
                             Spacer(Modifier.height(12.dp))
-                            Text("Your media. Your orbit.", color = OrbitText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                            Text("NOTHING TO PLAY", color = OrbitText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(6.dp))
-                            Text("Open a local video or audio file to begin", color = Color.Gray, fontSize = 12.sp)
+                            Text("Choose a file to enter your orbit.", color = Color.Gray, fontSize = 12.sp)
                             Spacer(Modifier.height(20.dp))
                             Button(onClick = { picker.launch(arrayOf("video/*", "audio/*")) },
                                 colors = ButtonDefaults.buttonColors(containerColor = OrbitGreen, contentColor = OrbitBlack)) {
                                 Icon(Icons.Default.FolderOpen, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
-                                Text("OPEN MEDIA", fontWeight = FontWeight.Bold)
+                                Text("BROWSE FILES", fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
-                Card(colors = CardDefaults.cardColors(containerColor = OrbitPanel), shape = RoundedCornerShape(18.dp)) {
+                Card(colors = CardDefaults.cardColors(containerColor = OrbitPanel), shape = RoundedCornerShape(4.dp)) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text("NOW PLAYING", color = OrbitGreen, fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
+                                Text("NOW / PLAYING", color = OrbitGreen, fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
                                 Text(mediaUri?.lastPathSegment ?: "Nothing queued", color = OrbitText, fontWeight = FontWeight.SemiBold, maxLines = 1)
                             }
-                            Surface(color = Color(0xFF252A2E), shape = RoundedCornerShape(8.dp)) {
+                            Surface(color = Color(0xFF252A2E), shape = RoundedCornerShape(3.dp)) {
                                 Text("${playbackSpeed}×", modifier = Modifier.padding(8.dp), color = OrbitGreen, fontSize = 12.sp)
                             }
                         }
@@ -158,7 +158,7 @@ private fun OrbitApp() {
                         }
                     }
                 }
-                Text("ORBIT / BUILD 001", modifier = Modifier.fillMaxWidth(), color = Color.Gray, fontSize = 10.sp, letterSpacing = 2.sp)
+                Text("● ● ●     DESIGNED FOR YOUR MEDIA", modifier = Modifier.fillMaxWidth(), color = Color.Gray, fontSize = 10.sp, letterSpacing = 2.sp)
             }
         }
     }
