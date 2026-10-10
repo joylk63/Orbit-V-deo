@@ -118,7 +118,7 @@ private fun OrbitApp() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) {
         hasPermission = hasVideoPermission(context)
-        if (hasPermission) videos = queryVideos(context)
+        if (hasPermission) { videos = queryVideos(context); audios = queryAudios(context) }
     }
 
     fun requestMediaPermission() {
