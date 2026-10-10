@@ -273,11 +273,57 @@ private fun OrbitApp() {
             },
             bottomBar = {
                 if (mediaUri == null) {
-                    NavigationBar(containerColor = OrbitPanel, contentColor = OrbitText, windowInsets = WindowInsets(0, 0, 0, 0)) {
-                        NavigationBarItem(selected = currentTab == "Video", onClick = { currentTab = "Video"; privacyUnlocked = false }, icon = { Icon(Icons.Default.VideoLibrary, contentDescription = null) }, label = { Text("Video", maxLines = 1) })
-                        NavigationBarItem(selected = currentTab == "Music", onClick = { currentTab = "Music"; privacyUnlocked = false }, icon = { Icon(Icons.Default.MusicNote, contentDescription = null) }, label = { Text("Music", maxLines = 1) })
-                        NavigationBarItem(selected = currentTab == "Folder", onClick = { currentTab = "Folder"; privacyUnlocked = false }, icon = { Icon(Icons.Default.Folder, contentDescription = null) }, label = { Text("Folder", maxLines = 1) })
-                        NavigationBarItem(selected = currentTab == "Me", onClick = { currentTab = "Me"; privacyUnlocked = false }, icon = { Icon(Icons.Default.Person, contentDescription = null) }, label = { Text("Me", maxLines = 1) })
+                    val navItems = listOf(
+                        Triple("Video", Icons.Default.VideoLibrary, "Video"),
+                        Triple("Music", Icons.Default.MusicNote, "Music"),
+                        Triple("Folder", Icons.Default.Folder, "Folder"),
+                        Triple("Me", Icons.Default.Person, "Me")
+                    )
+                    val selectedIndex = navItems.indexOfFirst { it.first == currentTab }.coerceAtLeast(0)
+                    Surface(color = OrbitPanel, tonalElevation = 0.dp) {
+                        BoxWithConstraints(
+                            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp)
+                        ) {
+                            val itemWidth = maxWidth / navItems.size
+                            val indicatorX by androidx.compose.animation.core.animateDpAsState(
+                                targetValue = itemWidth * selectedIndex,
+                                animationSpec = androidx.compose.animation.core.tween(
+                                    durationMillis = 420,
+                                    easing = androidx.compose.animation.core.FastOutSlowInEasing
+                                ),
+                                label = "nav-pill-position"
+                            )
+                            Box(
+                                Modifier.offset(x = indicatorX).width(itemWidth).height(42.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(OrbitText)
+                            )
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                navItems.forEach { item ->
+                                    val selected = currentTab == item.first
+                                    val iconTint by animateColorAsState(
+                                        targetValue = if (selected) OrbitBlack else OrbitMuted,
+                                        animationSpec = tween(220),
+                                        label = "nav-icon-tint-\${item.first}"
+                                    )
+                                    val labelTint by animateColorAsState(
+                                        targetValue = if (selected) OrbitText else OrbitMuted,
+                                        animationSpec = tween(220),
+                                        label = "nav-label-tint-\${item.first}"
+                                    )
+                                    Column(
+                                        Modifier.weight(1f).height(54.dp)
+                                            .clip(RoundedCornerShape(50))
+                                            .clickable { currentTab = item.first; privacyUnlocked = false },
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(item.second, contentDescription = item.third, tint = iconTint, modifier = Modifier.size(21.dp))
+                                        Text(item.third, color = labelTint, fontSize = 10.sp, maxLines = 1)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
