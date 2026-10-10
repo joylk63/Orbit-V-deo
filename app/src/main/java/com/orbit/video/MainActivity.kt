@@ -18,6 +18,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,6 +32,9 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.Dispatchers
@@ -79,6 +84,15 @@ private fun OrbitApp() {
     var showTrackInfo by remember { mutableStateOf(false) }
     var videos by remember { mutableStateOf<List<LocalVideo>>(emptyList()) }
     var hasPermission by remember { mutableStateOf(hasVideoPermission(context)) }
+    var searchQuery by remember { mutableStateOf("") }
+    var currentTab by remember { mutableStateOf("Library") }
+    var showPinDialog by remember { mutableStateOf(false) }
+    var pinEntry by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf("") }
+    var pendingHide by remember { mutableStateOf<LocalVideo?>(null) }
+    var privacyUnlocked by remember { mutableStateOf(false) }
+    var hiddenUris by remember { mutableStateOf(context.getSharedPreferences("orbit_privacy", Context.MODE_PRIVATE).getStringSet("hidden_uris", emptySet())?.toSet() ?: emptySet()) }
+    val prefs = remember { context.getSharedPreferences("orbit_player", Context.MODE_PRIVATE) }
 
     fun refreshVideos() {
         hasPermission = hasVideoPermission(context)
@@ -122,6 +136,7 @@ private fun OrbitApp() {
     }
 
     BackHandler(enabled = mediaUri != null) {
+        mediaUri?.let { prefs.edit().putLong("position:" + it.toString(), player.currentPosition.coerceAtLeast(0L)).apply() }
         player.pause()
         mediaUri = null
         selectedName = null
@@ -130,11 +145,15 @@ private fun OrbitApp() {
 
     LaunchedEffect(Unit) { refreshVideos() }
     LaunchedEffect(mediaUri) {
-        mediaUri?.let {
-            player.setMediaItem(MediaItem.fromUri(it))
+        mediaUri?.let { uri ->
+            val savedPosition = prefs.getLong("position:" + uri.toString(), 0L)
+            player.setMediaItem(MediaItem.fromUri(uri), savedPosition)
             player.prepare()
             player.playWhenReady = true
         }
+    }
+    DisposableEffect(mediaUri) {
+        onDispose { mediaUri?.let { uri -> prefs.edit().putLong("position:" + uri.toString(), player.currentPosition.coerceAtLeast(0L)).apply() } }
     }
     DisposableEffect(Unit) { onDispose { player.release() } }
 
@@ -167,7 +186,10 @@ private fun OrbitApp() {
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                if (mediaUri == null && currentTab == "Library") {
+                    OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.fillMaxWidth().animateContentSize(), placeholder = { Text("Search videos", color = OrbitMuted) }, leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = OrbitMuted) }, singleLine = true, shape = RoundedCornerShape(10.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = OrbitText, unfocusedTextColor = OrbitText, focusedBorderColor = OrbitAccent, unfocusedBorderColor = OrbitLine, cursorColor = OrbitAccent))
+                }
+                if (currentTab == "Library") Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(if (mediaUri == null) "YOUR LIBRARY" else "NOW / PLAYING", color = OrbitMuted, fontSize = 10.sp, letterSpacing = 2.sp)
                     Spacer(Modifier.weight(1f))
                     Text("●  LOCAL MEDIA", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 1.sp)
@@ -249,7 +271,7 @@ private fun OrbitApp() {
                                     modifier = Modifier.fillMaxWidth().weight(1f),
                                     verticalArrangement = Arrangement.spacedBy(7.dp)
                                 ) {
-                                    items(videos, key = { it.uri.toString() }) { video ->
+                                    items(videos.filter { it.uri.toString() !in hiddenUris && it.name.contains(searchQuery, ignoreCase = true) }, key = { it.uri.toString() }) { video ->
                                         val thumbnail by produceState<Bitmap?>(initialValue = null, video.uri) {
                                             value = withContext(Dispatchers.IO) {
                                                 if (Build.VERSION.SDK_INT >= 29) runCatching {
@@ -258,11 +280,9 @@ private fun OrbitApp() {
                                             }
                                         }
                                         Row(
-                                            Modifier.fillMaxWidth().background(OrbitPanel, RoundedCornerShape(3.dp))
-                                                .clickable {
-                                                    mediaUri = video.uri
-                                                    selectedName = video.name
-                                                }.padding(horizontal = 12.dp, vertical = 13.dp),
+                                            Modifier.fillMaxWidth().background(OrbitPanel, RoundedCornerShape(8.dp)).animateContentSize()
+                                                .combinedClickable(onClick = { mediaUri = video.uri; selectedName = video.name }, onLongClick = { pendingHide = video; pinEntry = ""; pinError = ""; showPinDialog = true })
+                                                .padding(horizontal = 12.dp, vertical = 13.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Box(Modifier.size(width = 88.dp, height = 58.dp).background(Color(0xFF242424), RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
@@ -293,7 +313,7 @@ private fun OrbitApp() {
                     }
                 }
 
-                if (mediaUri == null) Column(
+                if (mediaUri == null && currentTab == "Library") Column(
                     Modifier.fillMaxWidth().background(OrbitPanel, RoundedCornerShape(3.dp)).padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(11.dp)
                 ) {
@@ -335,7 +355,7 @@ private fun OrbitApp() {
                     if (showTrackInfo) Text("Audio and subtitle track selection is planned for a later build.", color = OrbitMuted, fontSize = 11.sp)
                 }
 
-                if (mediaUri == null) Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (mediaUri == null && currentTab == "Library") Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("● ● ●", color = OrbitAccent, fontSize = 10.sp, letterSpacing = 2.sp)
                     Spacer(Modifier.weight(1f))
                     Text("DESIGNED FOR YOUR MEDIA", color = OrbitMuted, fontSize = 9.sp, letterSpacing = 1.5.sp)
