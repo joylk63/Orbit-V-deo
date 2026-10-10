@@ -252,7 +252,8 @@ private fun OrbitApp() {
                 if (mediaUri == null) {
                     Row(
                         Modifier.fillMaxWidth().background(OrbitBlack)
-                            .padding(start = 22.dp, end = 12.dp, top = 14.dp, bottom = 12.dp),
+                            .statusBarsPadding()
+                            .padding(start = 22.dp, end = 12.dp, top = 8.dp, bottom = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(Modifier.weight(1f)) {
@@ -285,15 +286,15 @@ private fun OrbitApp() {
                 targetState = if (mediaUri != null) "Player" else currentTab,
                 modifier = Modifier.fillMaxSize().padding(padding),
                 transitionSpec = {
-                    (fadeIn(animationSpec = tween(240)) + slideInHorizontally(animationSpec = tween(240)) { it / 18 }) togetherWith
-                        (fadeOut(animationSpec = tween(170)) + slideOutHorizontally(animationSpec = tween(170)) { -it / 24 })
+                    (fadeIn(animationSpec = tween(150)) + slideInHorizontally(animationSpec = tween(150)) { it / 40 }) togetherWith
+                        (fadeOut(animationSpec = tween(110)) + slideOutHorizontally(animationSpec = tween(110)) { -it / 50 })
                 },
                 label = "orbit-screen-transition"
             ) { tab ->
             Column(
                 modifier = Modifier.fillMaxSize()
                     .padding(horizontal = if (mediaUri != null) 0.dp else 18.dp, vertical = if (mediaUri != null) 0.dp else 8.dp)
-                    .animateContentSize(animationSpec = tween(260)),
+                    .animateContentSize(animationSpec = tween(150)),
                 verticalArrangement = Arrangement.spacedBy(if (mediaUri != null) 0.dp else 12.dp)
             ) {
                 if (mediaUri == null && (tab == "Video" || tab == "Music")) {
@@ -352,10 +353,6 @@ private fun OrbitApp() {
 
                 if (tab == "Me" && mediaUri == null) {
                     Column(Modifier.fillMaxWidth().weight(1f).background(OrbitPanel, RoundedCornerShape(12.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Text("ABOUT ORBIT", color = OrbitText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Developer: Joy", color = OrbitMuted, fontSize = 14.sp)
-                        OutlinedButton(onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse("https://www.facebook.com/IMALONEJOY"))) }, modifier = Modifier.fillMaxWidth()) { Text("DEVELOPER FACEBOOK", color = OrbitText) }
-                        HorizontalDivider(color = OrbitLine)
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
                                 .clickable { themeSectionExpanded = !themeSectionExpanded }
@@ -406,6 +403,10 @@ private fun OrbitApp() {
                                 }
                             }
                         }
+                        HorizontalDivider(color = OrbitLine)
+                        Text("ABOUT ORBIT", color = OrbitText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Developer: Joy", color = OrbitMuted, fontSize = 14.sp)
+                        OutlinedButton(onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse("https://www.facebook.com/IMALONEJOY"))) }, modifier = Modifier.fillMaxWidth()) { Text("DEVELOPER FACEBOOK", color = OrbitText) }
                     }
                 } else if (mediaUri != null) {
                     if (!isLandscape) {
