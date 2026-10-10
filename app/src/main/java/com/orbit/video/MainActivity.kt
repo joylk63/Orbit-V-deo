@@ -135,6 +135,77 @@ private fun OrbitDotMatrixTitle(color: Color, modifier: Modifier = Modifier) {
     }
 }
 
+@Composable
+private fun OrbitDotMatrixText(text: String, color: Color, modifier: Modifier = Modifier, dotSize: Dp = 1.7.dp, dotGap: Dp = 1.dp, rowGap: Dp = 1.dp) {
+    val glyphs = mapOf(
+        'A' to listOf("01110","10001","10001","11111","10001","10001","10001"),
+        'B' to listOf("11110","10001","10001","11110","10001","10001","11110"),
+        'C' to listOf("01111","10000","10000","10000","10000","10000","01111"),
+        'D' to listOf("11110","10001","10001","10001","10001","10001","11110"),
+        'E' to listOf("11111","10000","10000","11110","10000","10000","11111"),
+        'F' to listOf("11111","10000","10000","11110","10000","10000","10000"),
+        'G' to listOf("01111","10000","10000","10111","10001","10001","01111"),
+        'H' to listOf("10001","10001","10001","11111","10001","10001","10001"),
+        'I' to listOf("11111","00100","00100","00100","00100","00100","11111"),
+        'J' to listOf("00111","00010","00010","00010","10010","10010","01100"),
+        'K' to listOf("10001","10010","10100","11000","10100","10010","10001"),
+        'L' to listOf("10000","10000","10000","10000","10000","10000","11111"),
+        'M' to listOf("10001","11011","10101","10101","10001","10001","10001"),
+        'N' to listOf("10001","11001","11001","10101","10011","10011","10001"),
+        'O' to listOf("01110","10001","10001","10001","10001","10001","01110"),
+        'P' to listOf("11110","10001","10001","11110","10000","10000","10000"),
+        'Q' to listOf("01110","10001","10001","10001","10101","10010","01101"),
+        'R' to listOf("11110","10001","10001","11110","10100","10010","10001"),
+        'S' to listOf("01111","10000","10000","01110","00001","00001","11110"),
+        'T' to listOf("11111","00100","00100","00100","00100","00100","00100"),
+        'U' to listOf("10001","10001","10001","10001","10001","10001","01110"),
+        'V' to listOf("10001","10001","10001","10001","10001","01010","00100"),
+        'W' to listOf("10001","10001","10001","10101","10101","10101","01010"),
+        'X' to listOf("10001","10001","01010","00100","01010","10001","10001"),
+        'Y' to listOf("10001","10001","01010","00100","00100","00100","00100"),
+        'Z' to listOf("11111","00001","00010","00100","01000","10000","11111"),
+        '0' to listOf("01110","10001","10011","10101","11001","10001","01110"),
+        '1' to listOf("00100","01100","00100","00100","00100","00100","01110"),
+        '2' to listOf("01110","10001","00001","00010","00100","01000","11111"),
+        '3' to listOf("11110","00001","00001","01110","00001","00001","11110"),
+        '4' to listOf("00010","00110","01010","10010","11111","00010","00010"),
+        '5' to listOf("11111","10000","10000","11110","00001","00001","11110"),
+        '6' to listOf("01110","10000","10000","11110","10001","10001","01110"),
+        '7' to listOf("11111","00001","00010","00100","01000","01000","01000"),
+        '8' to listOf("01110","10001","10001","01110","10001","10001","01110"),
+        '9' to listOf("01110","10001","10001","01111","00001","00001","01110"),
+        '!' to listOf("00100","00100","00100","00100","00100","00000","00100"),
+        '/' to listOf("00001","00010","00010","00100","01000","01000","10000"),
+        '-' to listOf("00000","00000","00000","11111","00000","00000","00000"),
+        ':' to listOf("00000","00100","00100","00000","00100","00100","00000")
+    )
+    val normalized = text.uppercase()
+    val charWidth = dotSize * 5 + dotGap * 4
+    val spaceWidth = dotSize * 2
+    val totalWidth = normalized.fold(0.dp) { acc, ch -> acc + (if (ch == ' ') spaceWidth else charWidth) + dotGap }
+    val totalHeight = dotSize * 7 + rowGap * 6
+    Canvas(modifier = modifier.width(totalWidth).height(totalHeight)) {
+        var x = 0f
+        normalized.forEach { ch ->
+            if (ch == ' ') {
+                x += spaceWidth.toPx() + dotGap.toPx()
+            } else {
+                val rows = glyphs[ch] ?: glyphs['!']!!
+                rows.forEachIndexed { row, bits ->
+                    bits.forEachIndexed { col, bit ->
+                        if (bit == '1') drawCircle(
+                            color = color,
+                            radius = dotSize.toPx() / 2f,
+                            center = Offset(x + col * (dotSize + dotGap).toPx() + dotSize.toPx() / 2f, row * (dotSize + rowGap).toPx() + dotSize.toPx() / 2f)
+                        )
+                    }
+                }
+                x += charWidth.toPx() + dotGap.toPx()
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun OrbitApp() {
@@ -431,7 +502,7 @@ private fun OrbitApp() {
 
                 if (tab == "Music" && mediaUri == null) {
                     Column(Modifier.fillMaxWidth().weight(1f).background(Color(0xFF050505), RoundedCornerShape(3.dp)).padding(14.dp)) {
-                        Text("MUSIC ON DEVICE", color = OrbitText, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                        OrbitDotMatrixText("MUSIC ON DEVICE", OrbitText, dotSize = 1.45.dp, dotGap = 0.8.dp)
                         Text("${audios.size} audio files found", color = OrbitMuted, fontSize = 11.sp)
                         Spacer(Modifier.height(8.dp))
                         LazyColumn(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -485,7 +556,7 @@ private fun OrbitApp() {
                             Icon(Icons.Default.Tune, contentDescription = null, tint = OrbitAccent)
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
-                                Text("APPEARANCE", color = OrbitText, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                OrbitDotMatrixText("APPEARANCE", OrbitText, dotSize = 1.7.dp, dotGap = 1.dp)
                                 Text("Theme: $themeName", color = OrbitMuted, fontSize = 12.sp)
                             }
                             Text(if (themeSectionExpanded) "−" else "+", color = OrbitAccent, fontSize = 22.sp)
@@ -507,7 +578,7 @@ private fun OrbitApp() {
                             }
                         }
                         HorizontalDivider(color = OrbitLine)
-                        Text("PRIVACY", color = OrbitText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        OrbitDotMatrixText("PRIVACY", OrbitText, dotSize = 1.8.dp, dotGap = 1.dp)
                         Text("Long-press any video in Library to hide it. Hidden videos are excluded from search and the main list.", color = OrbitMuted, fontSize = 12.sp)
                         Button(onClick = { pinEntry = ""; pinError = ""; showPinDialog = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = OrbitAccent)) {
                             Icon(Icons.Default.Lock, contentDescription = null)
@@ -527,7 +598,7 @@ private fun OrbitApp() {
                             }
                         }
                         HorizontalDivider(color = OrbitLine)
-                        Text("ABOUT ORBIT", color = OrbitText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        OrbitDotMatrixText("ABOUT ORBIT", OrbitText, dotSize = 2.dp, dotGap = 1.2.dp)
                         Text("Developer: Joy", color = OrbitMuted, fontSize = 14.sp)
                         OutlinedButton(onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse("https://www.facebook.com/IMALONEJOY"))) }, modifier = Modifier.fillMaxWidth()) { Text("DEVELOPER FACEBOOK", color = OrbitText) }
                     }
@@ -628,8 +699,8 @@ private fun OrbitApp() {
                                     }) { Text("⛶", color = Color.White, fontSize = 20.sp) }
                                 }
                             }
-                        } else {
-                            Button(onClick = { controlsLocked = false }, modifier = Modifier.align(Alignment.Center), colors = ButtonDefaults.buttonColors(containerColor = Color(0xAA202020))) { Text("🔒 UNLOCK", color = Color.White) }
+                        } else if (controlsLocked) {
+                            Button(onClick = { controlsLocked = false; showPlayerControls = true }, modifier = Modifier.align(Alignment.Center), colors = ButtonDefaults.buttonColors(containerColor = Color(0xAA202020))) { Text("🔓 UNLOCK", color = Color.White) }
                         }
                     }
                 } else if (tab == "Video") {
@@ -638,7 +709,7 @@ private fun OrbitApp() {
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text("VIDEOS ON DEVICE", color = OrbitText, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                                OrbitDotMatrixText("VIDEOS ON DEVICE", OrbitText, dotSize = 1.45.dp, dotGap = 0.8.dp)
                                 Text(if (hasPermission) "${videos.size} videos found" else "Allow access to scan your videos", color = OrbitMuted, fontSize = 11.sp)
                             }
                             if (hasPermission) {
@@ -661,7 +732,7 @@ private fun OrbitApp() {
                                 Spacer(Modifier.height(20.dp))
                                 OrbitDotMark()
                                 Spacer(Modifier.height(12.dp))
-                                Text("LET ORBIT FIND YOUR VIDEOS", color = OrbitText, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                                OrbitDotMatrixText("LET ORBIT FIND YOUR VIDEOS", OrbitText, dotSize = 1.25.dp, dotGap = 0.65.dp)
                                 Spacer(Modifier.height(8.dp))
                                 Text("Allow video access. Your device videos will appear here; you won't need to browse folders each time.", color = OrbitMuted, fontSize = 12.sp)
                                 Spacer(Modifier.height(16.dp))
@@ -674,7 +745,7 @@ private fun OrbitApp() {
                             }
                             videos.isEmpty() -> {
                                 Spacer(Modifier.height(28.dp))
-                                Text("NO VIDEOS FOUND", color = OrbitText, fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                                OrbitDotMatrixText("NO VIDEOS FOUND", OrbitText, dotSize = 1.5.dp, dotGap = 0.8.dp)
                                 Spacer(Modifier.height(6.dp))
                                 Text("Try Refresh, or open a video stored in another location.", color = OrbitMuted, fontSize = 12.sp)
                                 Spacer(Modifier.height(12.dp))
