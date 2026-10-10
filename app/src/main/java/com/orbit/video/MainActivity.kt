@@ -288,7 +288,7 @@ private fun OrbitApp() {
                             val indicatorX by androidx.compose.animation.core.animateDpAsState(
                                 targetValue = itemWidth * selectedIndex,
                                 animationSpec = androidx.compose.animation.core.tween(
-                                    durationMillis = 420,
+                                    durationMillis = 280,
                                     easing = androidx.compose.animation.core.FastOutSlowInEasing
                                 ),
                                 label = "nav-pill-position"
@@ -332,8 +332,25 @@ private fun OrbitApp() {
                 targetState = if (mediaUri != null) "Player" else currentTab,
                 modifier = Modifier.fillMaxSize().padding(padding),
                 transitionSpec = {
-                    (fadeIn(animationSpec = tween(150)) + slideInHorizontally(animationSpec = tween(150)) { it / 40 }) togetherWith
-                        (fadeOut(animationSpec = tween(110)) + slideOutHorizontally(animationSpec = tween(110)) { -it / 50 })
+                    val tabOrder = listOf("Video", "Music", "Folder", "Me")
+                    val fromIndex = tabOrder.indexOf(initialState)
+                    val toIndex = tabOrder.indexOf(targetState)
+                    val movingForward = fromIndex < 0 || toIndex < 0 || toIndex > fromIndex
+                    if (initialState == "Player" || targetState == "Player") {
+                        (fadeIn(animationSpec = tween(180)) + slideInHorizontally(
+                            animationSpec = tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                        ) { it / 12 }) togetherWith
+                            (fadeOut(animationSpec = tween(140)) + slideOutHorizontally(
+                                animationSpec = tween(180, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                            ) { -it / 16 })
+                    } else {
+                        (fadeIn(animationSpec = tween(190)) + slideInHorizontally(
+                            animationSpec = tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                        ) { fullWidth -> if (movingForward) fullWidth / 5 else -fullWidth / 5 }) togetherWith
+                            (fadeOut(animationSpec = tween(150)) + slideOutHorizontally(
+                                animationSpec = tween(230, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                            ) { fullWidth -> if (movingForward) -fullWidth / 7 else fullWidth / 7 })
+                    }
                 },
                 label = "orbit-screen-transition"
             ) { tab ->
