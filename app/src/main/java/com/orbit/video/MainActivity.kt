@@ -716,6 +716,52 @@ private fun OrbitApp() {
                             update = { it.player = player; it.resizeMode = if (fillVideo) androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM else androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT; it.useController = false },
                             modifier = Modifier.fillMaxSize()
                         )
+                        if (isLandscape && showPlayerControls && !controlsLocked) {
+                            Row(
+                                Modifier.align(Alignment.TopCenter).fillMaxWidth().background(Color(0xAA080808)).statusBarsPadding().padding(horizontal = 10.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(onClick = {
+                                    player.pause()
+                                    mediaUri?.let { prefs.edit().putLong("position:" + it.toString(), player.currentPosition.coerceAtLeast(0L)).apply() }
+                                    mediaUri = null; selectedName = null; controlsLocked = false
+                                    (context as? ComponentActivity)?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                                    landscapeMode = false
+                                }) { Text("‹", color = Color.White, fontSize = 24.sp) }
+                                Text(selectedName ?: "NOW PLAYING", color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                Box {
+                                    TextButton(onClick = { playerMenuExpanded = true }) { Text("⋮", color = Color.White, fontSize = 22.sp) }
+                                    DropdownMenu(expanded = playerMenuExpanded, onDismissRequest = { playerMenuExpanded = false }, containerColor = OrbitPanel) {
+                                        DropdownMenuItem(text = { Text("File information", color = OrbitText) }, onClick = { playerMenuExpanded = false; showFileInfoDialog = true })
+                                        DropdownMenuItem(text = { Text("Share video", color = OrbitText) }, onClick = {
+                                            playerMenuExpanded = false
+                                            mediaUri?.let { uri ->
+                                                val shareIntent = Intent(Intent.ACTION_SEND).setType("video/*").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                context.startActivity(Intent.createChooser(shareIntent, "Share video"))
+                                            }
+                                        })
+                                        DropdownMenuItem(text = { Text("Delete permanently", color = OrbitAccent) }, onClick = {
+                                            playerMenuExpanded = false
+                                            mediaUri?.let { uri ->
+                                                if (Build.VERSION.SDK_INT >= 30) runCatching { deleteRequestLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(MediaStore.createDeleteRequest(context.contentResolver, listOf(uri)).intentSender).build()) }
+                                                else runCatching { context.contentResolver.delete(uri, null, null); player.pause(); mediaUri = null; selectedName = null; refreshVideos() }
+                                            }
+                                        })
+                                        DropdownMenuItem(text = { Text("Playback speed", color = OrbitText) }, onClick = { playerMenuExpanded = false; speedMenuExpanded = true })
+                                    }
+                                }
+                            }
+                        }
+                        if (gestureIndicator != null) {
+                            LaunchedEffect(gestureIndicator) { delay(900); gestureIndicator = null }
+                            Column(Modifier.align(Alignment.Center).background(Color(0xCC181818), RoundedCornerShape(12.dp)).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(if (gestureIndicator == "VOLUME") "🔊 VOLUME" else "☀ BRIGHTNESS", color = Color.White, fontSize = 12.sp)
+                                Spacer(Modifier.height(8.dp))
+                                Box(Modifier.width(140.dp).height(5.dp).background(Color.DarkGray, RoundedCornerShape(5.dp))) {
+                                    Box(Modifier.fillMaxWidth(gestureLevel.coerceIn(0f, 1f)).fillMaxHeight().background(OrbitAccent, RoundedCornerShape(5.dp)))
+                                }
+                            }
+                        }
                         if (showPlayerControls && !controlsLocked) {
                             Column(Modifier.align(Alignment.CenterStart).padding(start = 6.dp).background(Color(0x77000000), RoundedCornerShape(10.dp)), horizontalAlignment = Alignment.CenterHorizontally) {
                                 TextButton(onClick = { player.volume = if (isMuted) 1f else 0f; isMuted = !isMuted }) { Text(if (isMuted) "🔇" else "🔊", color = Color.White, fontSize = 20.sp) }
@@ -922,6 +968,23 @@ private fun OrbitApp() {
             }
             }
         }
+    }
+    if (showFileInfoDialog) {
+        val selectedVideo = videos.firstOrNull { it.uri == mediaUri }
+        AlertDialog(
+            onDismissRequest = { showFileInfoDialog = false },
+            title = { Text("FILE INFORMATION", color = OrbitText) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Name: ${selectedName ?: "Unknown"}", color = OrbitText)
+                    Text("Duration: ${formatDuration(selectedVideo?.durationMs ?: playbackDuration)}", color = OrbitMuted)
+                    Text("Size: ${selectedVideo?.let { formatSize(it.size) } ?: "Not available"}", color = OrbitMuted)
+                    Text("Location: ${selectedVideo?.folder?.ifBlank { "Device media" } ?: mediaUri?.toString().orEmpty()}", color = OrbitMuted)
+                }
+            },
+            confirmButton = { TextButton(onClick = { showFileInfoDialog = false }) { Text("CLOSE", color = OrbitAccent) } },
+            containerColor = OrbitPanel
+        )
     }
     if (showPinDialog) {
         val privacyPrefs = context.getSharedPreferences("orbit_privacy", Context.MODE_PRIVATE)
