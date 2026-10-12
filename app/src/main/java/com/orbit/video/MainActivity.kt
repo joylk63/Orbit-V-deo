@@ -669,7 +669,40 @@ private fun OrbitApp() {
                     Box(
                         Modifier.fillMaxWidth().weight(1f).background(Color.Black)
                             .pointerInput(mediaUri, controlsLocked) {
-                                detectTapGestures(onTap = { if (!controlsLocked) showPlayerControls = !showPlayerControls })
+                                detectTapGestures(
+                                    onTap = {
+                                        if (!controlsLocked) showPlayerControls = !showPlayerControls
+                                    },
+                                    onDoubleTap = { tapOffset ->
+                                        if (!controlsLocked && mediaUri != null) {
+                                            val width = size.width
+                                            when {
+                                                tapOffset.x < width / 3f -> {
+                                                    val target = (player.currentPosition - 10_000L).coerceAtLeast(0L)
+                                                    player.seekTo(target)
+                                                    playbackPosition = target
+                                                    gestureIndicator = "REWIND 10 SEC"
+                                                }
+                                                tapOffset.x > width * 2f / 3f -> {
+                                                    val duration = player.duration.takeIf { it > 0L && it != C.TIME_UNSET } ?: Long.MAX_VALUE
+                                                    val target = (player.currentPosition + 10_000L).coerceAtMost(duration)
+                                                    player.seekTo(target)
+                                                    playbackPosition = target
+                                                    gestureIndicator = "FORWARD 10 SEC"
+                                                }
+                                                else -> {
+                                                    if (player.isPlaying) {
+                                                        player.pause()
+                                                        gestureIndicator = "PAUSED"
+                                                    } else {
+                                                        player.play()
+                                                        gestureIndicator = "PLAYING"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                )
                             }
                             .pointerInput(mediaUri, controlsLocked) {
                                 var totalDrag = 0f
