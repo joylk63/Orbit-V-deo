@@ -182,26 +182,29 @@ private fun OrbitDotMatrixText(text: String, color: Color, modifier: Modifier = 
     )
     val normalized = text.uppercase()
     val charWidth = dotSize * 5 + dotGap * 4
-    val spaceWidth = dotSize * 2
-    val totalWidth = normalized.fold(0.dp) { acc, ch -> acc + (if (ch == ' ') spaceWidth else charWidth) + dotGap }
+    val letterGap = dotGap * 2.5f
+    val spaceWidth = dotSize * 4 + dotGap * 3
+    val totalWidth = normalized.fold(0.dp) { acc, ch ->
+        acc + (if (ch == ' ') spaceWidth else charWidth) + if (ch == ' ') 0.dp else letterGap
+    }
     val totalHeight = dotSize * 7 + rowGap * 6
     Canvas(modifier = modifier.width(totalWidth).height(totalHeight)) {
         var x = 0f
         normalized.forEach { ch ->
             if (ch == ' ') {
-                x += spaceWidth.toPx() + dotGap.toPx()
+                x += spaceWidth.toPx()
             } else {
                 val rows = glyphs[ch] ?: glyphs['!']!!
                 rows.forEachIndexed { row, bits ->
                     bits.forEachIndexed { col, bit ->
-                        if (bit == '1') drawCircle(
+                        if (bit == '1') drawRect(
                             color = color,
-                            radius = dotSize.toPx() / 2f,
-                            center = Offset(x + col * (dotSize + dotGap).toPx() + dotSize.toPx() / 2f, row * (dotSize + rowGap).toPx() + dotSize.toPx() / 2f)
+                            topLeft = Offset(x + col * (dotSize + dotGap).toPx(), row * (dotSize + rowGap).toPx()),
+                            size = androidx.compose.ui.geometry.Size(dotSize.toPx(), dotSize.toPx())
                         )
                     }
                 }
-                x += charWidth.toPx() + dotGap.toPx()
+                x += charWidth.toPx() + letterGap.toPx()
             }
         }
     }
