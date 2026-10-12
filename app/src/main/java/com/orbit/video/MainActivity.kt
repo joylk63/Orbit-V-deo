@@ -244,12 +244,12 @@ private fun OrbitApp() {
         "Amber" -> listOf(Color(0xFF0B0905), Color(0xFF1D1710), Color(0xFFFFB547), Color(0xFFFFF7E8), Color(0xFFB5A48A), Color(0xFF413222))
         else -> listOf(Color(0xFF080808), Color(0xFF141414), Color(0xFFE53935), Color(0xFFF4F4F0), Color(0xFF92928D), Color(0xFF303030))
     }
-    val OrbitBlack by animateColorAsState(palette[0], animationSpec = tween(350), label = "theme-background")
-    val OrbitPanel by animateColorAsState(palette[1], animationSpec = tween(350), label = "theme-panel")
-    val OrbitAccent by animateColorAsState(palette[2], animationSpec = tween(350), label = "theme-accent")
-    val OrbitText by animateColorAsState(palette[3], animationSpec = tween(350), label = "theme-text")
-    val OrbitMuted by animateColorAsState(palette[4], animationSpec = tween(350), label = "theme-muted")
-    val OrbitLine by animateColorAsState(palette[5], animationSpec = tween(350), label = "theme-line")
+    val OrbitBlack by animateColorAsState(palette[0], animationSpec = tween(270), label = "theme-background")
+    val OrbitPanel by animateColorAsState(palette[1], animationSpec = tween(270), label = "theme-panel")
+    val OrbitAccent by animateColorAsState(palette[2], animationSpec = tween(270), label = "theme-accent")
+    val OrbitText by animateColorAsState(palette[3], animationSpec = tween(270), label = "theme-text")
+    val OrbitMuted by animateColorAsState(palette[4], animationSpec = tween(270), label = "theme-muted")
+    val OrbitLine by animateColorAsState(palette[5], animationSpec = tween(270), label = "theme-line")
     var gridView by remember { mutableStateOf(prefs.getBoolean("video_grid_view", false)) }
     var currentTab by remember { mutableStateOf("Video") }
     var themeSectionExpanded by remember { mutableStateOf(false) }
@@ -455,7 +455,7 @@ private fun OrbitApp() {
                             val indicatorX by androidx.compose.animation.core.animateDpAsState(
                                 targetValue = itemWidth * selectedIndex,
                                 animationSpec = androidx.compose.animation.core.tween(
-                                    durationMillis = 280,
+                                    durationMillis = 220,
                                     easing = androidx.compose.animation.core.FastOutSlowInEasing
                                 ),
                                 label = "nav-pill-position"
@@ -470,7 +470,7 @@ private fun OrbitApp() {
                                     val selected = currentTab == item.first
                                     val iconTint by animateColorAsState(
                                         targetValue = if (selected) OrbitBlack else OrbitMuted,
-                                        animationSpec = tween(220),
+                                        animationSpec = tween(175),
                                         label = "nav-icon-tint-\${item.first}"
                                     )
                                     Column(
@@ -498,18 +498,18 @@ private fun OrbitApp() {
                     val toIndex = tabOrder.indexOf(targetState)
                     val movingForward = fromIndex < 0 || toIndex < 0 || toIndex > fromIndex
                     if (initialState == "Player" || targetState == "Player") {
-                        (fadeIn(animationSpec = tween(180)) + slideInHorizontally(
-                            animationSpec = tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                        (fadeIn(animationSpec = tween(110)) + slideInHorizontally(
+                            animationSpec = tween(175, easing = androidx.compose.animation.core.FastOutSlowInEasing)
                         ) { it / 12 }) togetherWith
-                            (fadeOut(animationSpec = tween(140)) + slideOutHorizontally(
-                                animationSpec = tween(180, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                            (fadeOut(animationSpec = tween(110)) + slideOutHorizontally(
+                                animationSpec = tween(140, easing = androidx.compose.animation.core.FastOutSlowInEasing)
                             ) { -it / 16 })
                     } else {
-                        (fadeIn(animationSpec = tween(190)) + slideInHorizontally(
-                            animationSpec = tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                        (fadeIn(animationSpec = tween(95)) + slideInHorizontally(
+                            animationSpec = tween(205, easing = androidx.compose.animation.core.FastOutSlowInEasing)
                         ) { fullWidth -> if (movingForward) fullWidth / 5 else -fullWidth / 5 }) togetherWith
-                            (fadeOut(animationSpec = tween(150)) + slideOutHorizontally(
-                                animationSpec = tween(230, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                            (fadeOut(animationSpec = tween(95)) + slideOutHorizontally(
+                                animationSpec = tween(180, easing = androidx.compose.animation.core.FastOutSlowInEasing)
                             ) { fullWidth -> if (movingForward) -fullWidth / 7 else fullWidth / 7 })
                     }
                 },
@@ -518,7 +518,7 @@ private fun OrbitApp() {
             Column(
                 modifier = Modifier.fillMaxSize()
                     .padding(horizontal = if (mediaUri != null) 0.dp else 18.dp, vertical = if (mediaUri != null) 0.dp else 8.dp)
-                    .animateContentSize(animationSpec = tween(150)),
+                    .animateContentSize(animationSpec = tween(95)),
                 verticalArrangement = Arrangement.spacedBy(if (mediaUri != null) 0.dp else 12.dp)
             ) {
                 if (mediaUri == null && showSearchField && (tab == "Video" || tab == "Music")) {
@@ -592,7 +592,7 @@ private fun OrbitApp() {
                             Text(if (themeSectionExpanded) "−" else "+", color = OrbitAccent, fontSize = 22.sp)
                         }
                         AnimatedContent(targetState = themeSectionExpanded, transitionSpec = {
-                            fadeIn(tween(180)) togetherWith fadeOut(tween(120))
+                            fadeIn(tween(110)) togetherWith fadeOut(tween(95))
                         }, label = "theme-options") { expanded ->
                             if (expanded) {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
