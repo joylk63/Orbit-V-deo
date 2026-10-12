@@ -326,6 +326,13 @@ private fun OrbitApp() {
 
     LaunchedEffect(Unit) { refreshVideos() }
     LaunchedEffect(mediaUri) {
+        // Save the item that is actually loaded in ExoPlayer before switching to another URI.
+        // This prevents a newly opened video's position from overwriting the previous video's bookmark.
+        player.currentMediaItem?.localConfiguration?.uri?.let { loadedUri ->
+            if (player.currentPosition >= 0L) {
+                prefs.edit().putLong("position:" + loadedUri.toString(), player.currentPosition).apply()
+            }
+        }
         mediaUri?.let { uri ->
             val savedPosition = prefs.getLong("position:" + uri.toString(), 0L)
             showPlayerControls = true
@@ -338,9 +345,11 @@ private fun OrbitApp() {
     }
     LaunchedEffect(mediaUri) {
         while (mediaUri != null) {
-            val uri = mediaUri
-            if (uri != null && player.currentPosition >= 0L) {
-                prefs.edit().putLong("position:" + uri.toString(), player.currentPosition).apply()
+            // Always associate the position with ExoPlayer's current media URI, not the
+            // Compose selection state, which can change before ExoPlayer switches items.
+            val loadedUri = player.currentMediaItem?.localConfiguration?.uri
+            if (loadedUri != null && player.currentPosition >= 0L) {
+                prefs.edit().putLong("position:" + loadedUri.toString(), player.currentPosition).apply()
             }
             delay(1000)
         }
@@ -364,7 +373,13 @@ private fun OrbitApp() {
     }
 
     DisposableEffect(mediaUri) {
-        onDispose { mediaUri?.let { uri -> prefs.edit().putLong("position:" + uri.toString(), player.currentPosition.coerceAtLeast(0L)).apply() } }
+        onDispose {
+            // Save against the actual player item so a fast back/switch cannot bookmark
+            // the outgoing position under the next video's URI.
+            player.currentMediaItem?.localConfiguration?.uri?.let { loadedUri ->
+                prefs.edit().putLong("position:" + loadedUri.toString(), player.currentPosition.coerceAtLeast(0L)).apply()
+            }
+        }
     }
     DisposableEffect(mediaUri, isLandscape) {
         val activity = context as? ComponentActivity
