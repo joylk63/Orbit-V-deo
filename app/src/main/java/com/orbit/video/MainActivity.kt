@@ -3,6 +3,8 @@ package com.orbit.video
 import android.Manifest
 import android.content.ContentUris
 import android.content.Context
+import android.content.Intent
+import android.media.AudioManager
 import android.content.pm.PackageManager
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
@@ -42,6 +44,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -254,6 +258,9 @@ private fun OrbitApp() {
     var fillVideo by remember { mutableStateOf(false) }
     var speedMenuExpanded by remember { mutableStateOf(false) }
     var playerMenuExpanded by remember { mutableStateOf(false) }
+    var showFileInfoDialog by remember { mutableStateOf(false) }
+    var gestureIndicator by remember { mutableStateOf<String?>(null) }
+    var gestureLevel by remember { mutableFloatStateOf(0f) }
     var landscapeMode by remember { mutableStateOf(false) }
     var showPinDialog by remember { mutableStateOf(false) }
     var pinEntry by remember { mutableStateOf("") }
@@ -280,6 +287,10 @@ private fun OrbitApp() {
             arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
         permissionLauncher.launch(permissions)
+    }
+
+    val deleteRequestLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) refreshVideos()
     }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -624,6 +635,21 @@ private fun OrbitApp() {
                             Box {
                                 TextButton(onClick = { playerMenuExpanded = true }) { Text("⋮", color = OrbitText, fontSize = 22.sp) }
                                 DropdownMenu(expanded = playerMenuExpanded, onDismissRequest = { playerMenuExpanded = false }, containerColor = OrbitPanel) {
+                                    DropdownMenuItem(text = { Text("File information", color = OrbitText) }, onClick = { playerMenuExpanded = false; showFileInfoDialog = true })
+                                    DropdownMenuItem(text = { Text("Share video", color = OrbitText) }, onClick = {
+                                        playerMenuExpanded = false
+                                        mediaUri?.let { uri ->
+                                            val shareIntent = Intent(Intent.ACTION_SEND).setType("video/*").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            context.startActivity(Intent.createChooser(shareIntent, "Share video"))
+                                        }
+                                    })
+                                    DropdownMenuItem(text = { Text("Delete permanently", color = OrbitAccent) }, onClick = {
+                                        playerMenuExpanded = false
+                                        mediaUri?.let { uri ->
+                                            if (Build.VERSION.SDK_INT >= 30) runCatching { deleteRequestLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(MediaStore.createDeleteRequest(context.contentResolver, listOf(uri)).intentSender).build()) }
+                                            else runCatching { context.contentResolver.delete(uri, null, null); player.pause(); mediaUri = null; selectedName = null; refreshVideos() }
+                                        }
+                                    })
                                     DropdownMenuItem(text = { Text("Playback speed", color = OrbitText) }, onClick = { playerMenuExpanded = false; speedMenuExpanded = true })
                                     DropdownMenuItem(text = { Text(if (fillVideo) "Fit video" else "Fill screen", color = OrbitText) }, onClick = { fillVideo = !fillVideo; playerMenuExpanded = false })
                                     DropdownMenuItem(text = { Text(if (isLandscape) "Portrait orientation" else "Landscape orientation", color = OrbitText) }, onClick = {
@@ -642,12 +668,39 @@ private fun OrbitApp() {
                     }
                     Box(
                         Modifier.fillMaxWidth().weight(1f).background(Color.Black)
-                            .pointerInput(mediaUri) {
-                                awaitEachGesture {
-                                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                                    val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
-                                    if (up != null && mediaUri != null && !controlsLocked) showPlayerControls = true
-                                }
+                            .pointerInput(mediaUri, controlsLocked) {
+                                detectTapGestures(onTap = { if (!controlsLocked) showPlayerControls = !showPlayerControls })
+                            }
+                            .pointerInput(mediaUri, controlsLocked) {
+                                var totalDrag = 0f
+                                detectVerticalDragGestures(
+                                    onDragStart = { totalDrag = 0f },
+                                    onVerticalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        totalDrag += dragAmount
+                                        if (controlsLocked) return@detectVerticalDragGestures
+                                        val isRightSide = change.position.x > size.width * 0.5f
+                                        if (isRightSide) {
+                                            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                                            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                                            val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                            val next = (current - totalDrag / size.height * maxVolume * 2f).toInt().coerceIn(0, maxVolume)
+                                            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, next, 0)
+                                            gestureLevel = next.toFloat() / maxVolume.coerceAtLeast(1)
+                                            gestureIndicator = "VOLUME"
+                                        } else {
+                                            val activity = context as? ComponentActivity
+                                            val attrs = activity?.window?.attributes
+                                            if (attrs != null) {
+                                                val current = if (attrs.screenBrightness < 0f) 0.5f else attrs.screenBrightness
+                                                attrs.screenBrightness = (current - dragAmount / size.height).coerceIn(0.02f, 1f)
+                                                activity.window.attributes = attrs
+                                                gestureLevel = attrs.screenBrightness
+                                                gestureIndicator = "BRIGHTNESS"
+                                            }
+                                        }
+                                    }
+                                )
                             },
                         contentAlignment = Alignment.Center
                     ) {
