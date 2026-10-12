@@ -119,16 +119,16 @@ private fun OrbitDotMatrixTitle(color: Color, modifier: Modifier = Modifier) {
     )
     Canvas(modifier = modifier.width(126.dp).height(27.dp)) {
         val cell = size.height / 7f
-        val radius = cell * 0.19f
-        val letterGap = cell * 1.05f
+        val pixelSize = cell * 0.72f
+        val letterGap = cell * 1.45f
         letters.forEachIndexed { letterIndex, rows ->
             rows.forEachIndexed { rowIndex, row ->
                 row.forEachIndexed { colIndex, bit ->
                     if (bit == '1') {
-                        drawCircle(color = color, radius = radius, center = Offset(
-                            x = letterIndex * (5 * cell + letterGap) + colIndex * cell + cell / 2f,
-                            y = rowIndex * cell + cell / 2f
-                        ))
+                        drawRect(color = color, topLeft = Offset(
+                            x = letterIndex * (5 * cell + letterGap) + colIndex * cell + (cell - pixelSize) / 2f,
+                            y = rowIndex * cell + (cell - pixelSize) / 2f
+                        ), size = androidx.compose.ui.geometry.Size(pixelSize, pixelSize))
                     }
                 }
             }
